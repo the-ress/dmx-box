@@ -1,6 +1,6 @@
 {
   "C_Cpp.intelliSenseEngine": "Tag Parser",
-  "idf.portWin": "COM7",
+  "idf.portWin": "COM6",
   "idf.adapterTargetName": "esp32",
   "idf.openOcdConfigs": [
     "interface/ftdi/esp32_devkitj_v1.cfg",
@@ -28,6 +28,8 @@
     "const.h": "c",
     "cerrno": "c",
     "esp_httpd_priv.h": "c",
-    "esp_http_server.h": "c"
+    "esp_http_server.h": "c",
+    "artnet.h": "c",
+    "sockets.h": "c"
   }
 }

@@ -25,7 +25,7 @@ void recalc(uint8_t data[DMX_MAX_PACKET_SIZE], bool *artnet_active, bool *dmx_ou
     if (dmx_in_connected)
     {
         taskENTER_CRITICAL(&dmx_in_spinlock);
-        memcpy(data + 1, dmx_in_data, DMX_CHANNEL_COUNT);
+        memcpy(data + 1, dmx_in_data + 1, DMX_CHANNEL_COUNT);
         taskEXIT_CRITICAL(&dmx_in_spinlock);
     }
 

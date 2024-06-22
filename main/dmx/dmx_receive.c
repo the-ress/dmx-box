@@ -11,7 +11,7 @@ portMUX_TYPE dmx_in_spinlock = portMUX_INITIALIZER_UNLOCKED;
 uint8_t dmx_in_data[DMX_MAX_PACKET_SIZE];
 bool dmx_in_connected = false;
 
-static uint32_t timer = 0;
+// static uint32_t timer = 0;
 
 static void configure_dmx_in(QueueHandle_t *dmx_queue)
 {
@@ -36,14 +36,15 @@ static void handle_packet(const dmx_event_t *event)
         ESP_ERROR_CHECK(led_set_state(DMX_IN_LED_GPIO, 1));
     }
 
-    timer += event->duration;
+    // timer += event->duration;
 
-    // print a log message every 1 second (1000000 us)
-    if (timer >= 1000000)
-    {
-        ESP_LOG_BUFFER_HEX(TAG, dmx_in_data, 16);
-        timer -= 1000000;
-    }
+    // // print a log message every 1 second (1000000 us)
+    // if (timer >= 1000000)
+    // {
+    //     ESP_LOGI(TAG, "DMX IN data");
+    //     ESP_LOG_BUFFER_HEX(TAG, dmx_in_data, DMX_MAX_PACKET_SIZE);
+    //     timer -= 1000000;
+    // }
 }
 
 static void handle_timeout(void)
