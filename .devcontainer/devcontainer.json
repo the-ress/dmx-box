@@ -5,26 +5,41 @@
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
-	"settings": {
-		"terminal.integrated.defaultProfile.linux": "bash",
-		"idf.espIdfPath": "/opt/esp/idf",
-		"idf.customExtraPaths": "",
-		"idf.pythonBinPath": "/opt/esp/python_env/idf4.3_py3.6_env/bin/python",
-		"idf.toolsPath": "/opt/esp",
-		"idf.gitPath": "/usr/bin/git"
-	},
-	// Add the IDs of extensions you want installed when the container is created.
-	"extensions": [
-		"ms-vscode.cpptools",
-		"espressif.esp-idf-extension"
+	// Add the IDs of extensions you want installed when the container is created
+	"workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind",
+	/* the path of workspace folder to be opened after container is running
+	 */
+	"workspaceFolder": "${localWorkspaceFolder}",
+	"mounts": [
+		"source=extensionCache,target=/root/.vscode-server/extensions,type=volume"
 	],
-
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
-
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "bash /opt/esp/entrypoint.sh",
-
-	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-	// "remoteUser": "vscodeuser"
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"terminal.integrated.defaultProfile.linux": "bash",
+				"idf.espIdfPath": "/opt/esp/idf",
+				"idf.customExtraPaths": "",
+				"idf.pythonBinPath": "/opt/esp/python_env/idf5.3_py3.10_env/bin/python",
+				"idf.toolsPath": "/opt/esp",
+				"idf.gitPath": "/usr/bin/git"
+			},
+			"extensions": [
+				"espressif.esp-idf-extension"
+			],
+		},
+		"codespaces": {
+			"settings": {
+				"terminal.integrated.defaultProfile.linux": "bash",
+				"idf.espIdfPath": "/opt/esp/idf",
+				"idf.customExtraPaths": "",
+				"idf.pythonBinPath": "/opt/esp/python_env/idf5.3_py3.10_env/bin/python",
+				"idf.toolsPath": "/opt/esp",
+				"idf.gitPath": "/usr/bin/git"
+			},
+			"extensions": [
+				"espressif.esp-idf-extension"
+			],
+		}
+	},
+	"runArgs": ["--privileged"]
 }

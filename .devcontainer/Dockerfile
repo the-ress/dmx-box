@@ -1,6 +1,9 @@
-FROM espressif/idf:release-v4.3
+FROM espressif/idf
 
 ARG DEBIAN_FRONTEND=nointeractive
+ARG CONTAINER_USER=esp
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
 
 RUN apt-get update \
   && apt install -y -q \
@@ -8,19 +11,17 @@ RUN apt-get update \
   git \
   libglib2.0-0 \
   libnuma1 \
-  libpixman-1-0
-
-RUN ./opt/esp/entrypoint.sh && pip install --no-cache-dir idf-component-manager
+  libpixman-1-0 \
+  && rm -rf /var/lib/apt/lists/*
 
 # QEMU
-ENV QEMU_REL=esp-develop-20210220
-ENV QEMU_SHA256=44c130226bdce9aff6abf0aeaab44f09fe4f2d71a5f9225ac1708d68e4852c02
-ENV QEMU_DIST=qemu-${QEMU_REL}.tar.bz2
-ENV QEMU_URL=https://github.com/espressif/qemu/releases/download/${QEMU_REL}/${QEMU_DIST}
+ENV QEMU_REL=esp_develop_8.2.0_20240122
+ENV QEMU_SHA256=e7c72ef5705ad1444d391711088c8717fc89f42e9bf6d1487f9c2a326b8cfa83
+ENV QEMU_DIST=qemu-xtensa-softmmu-${QEMU_REL}-x86_64-linux-gnu.tar.xz
+ENV QEMU_URL=https://github.com/espressif/qemu/releases/download/esp-develop-8.2.0-20240122/${QEMU_DIST}
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-ENV IDF_PYTHON_ENV_PATH=/opt/esp/python_env/idf4.3_py3.6_env
 
 RUN wget --no-verbose ${QEMU_URL} \
   && echo "${QEMU_SHA256} *${QEMU_DIST}" | sha256sum --check --strict - \
@@ -29,8 +30,18 @@ RUN wget --no-verbose ${QEMU_URL} \
 
 ENV PATH=/opt/qemu/bin:${PATH}
 
-RUN echo $($IDF_PATH/tools/idf_tools.py export) >> $HOME/.bashrc
+RUN groupadd --gid $USER_GID $CONTAINER_USER \
+  && adduser --uid $USER_UID --gid $USER_GID --disabled-password --gecos "" ${CONTAINER_USER} \
+  && usermod -a -G root $CONTAINER_USER && usermod -a -G dialout $CONTAINER_USER
+
+RUN chmod -R 775 /opt/esp/python_env/
+
+USER ${CONTAINER_USER}
+ENV USER=${CONTAINER_USER}
+WORKDIR /home/${CONTAINER_USER}
+
+RUN echo "source /opt/esp/idf/export.sh > /dev/null 2>&1" >> ~/.bashrc
 
 ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
 
-CMD ["/bin/bash"]
+CMD ["/bin/bash", "-c"]
