@@ -417,6 +417,9 @@ static void handle_packet(int sock, tcpip_adapter_if_t interface, const struct s
         handle_op_poll(sock, interface, source_addr, packet, len);
         break;
 
+    case OP_POLL_REPLY:
+        break;
+
     case OP_DMX:
         handle_op_dmx(sock, source_addr, addr_str, packet, len);
         break;
