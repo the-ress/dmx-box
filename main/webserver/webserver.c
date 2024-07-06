@@ -95,30 +95,22 @@ static esp_err_t common_get_handler(httpd_req_t *req) {
   return ESP_OK;
 }
 
-static char *auth_mode_to_string(wifi_auth_mode_t auth_mode) {
-  switch (auth_mode) {
-  case WIFI_AUTH_OPEN:
-    return "open";
-  case WIFI_AUTH_WEP:
-    return "WEP";
-  case WIFI_AUTH_WPA_PSK:
-    return "WPA_PSK";
-  case WIFI_AUTH_WPA2_PSK:
-    return "WPA2_PSK";
-  case WIFI_AUTH_WPA_WPA2_PSK:
-    return "WPA_WPA2_PSK";
-  // case WIFI_AUTH_WPA2_ENTERPRISE:
-  //     return "WPA2_ENTERPRISE";
-  case WIFI_AUTH_WPA3_PSK:
-    return "WPA3_PSK";
-  case WIFI_AUTH_WPA2_WPA3_PSK:
-    return "WPA2_WPA3_PSK";
-  // case WIFI_AUTH_WAPI_PSK:
-  //     return "WAPI_PSK";
-  default:
-    ESP_LOGE(TAG, "Unknown auth mode: %d", auth_mode);
-    return "";
+static const char *auth_mode_to_string(wifi_auth_mode_t auth_mode) {
+  static const char *strings[] = {
+      "open",
+      "WEP",
+      "WPA_PSK",
+      "WPA2_PSK",
+      "WPA_WPA2_PSK",
+      "", // WPA2_ENTERPRISE
+      "WPA3_PSK",
+      "WPA2_WPA3_PSK",
+  };
+  if (auth_mode >= 0 && auth_mode < (sizeof(strings) / sizeof(strings[0]))) {
+    return strings[auth_mode];
   }
+  ESP_LOGE(TAG, "Unknown auth mode: %d", auth_mode);
+  return "";
 }
 
 static wifi_auth_mode_t string_to_auth_mode(char *str) {
