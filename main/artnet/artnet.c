@@ -24,6 +24,7 @@ static const char *TAG = "artnet";
 #define SHORT_NAME "DMX Box"
 #define LONG_NAME "Art-Net -> DMX converter"
 #define LOG_DMX_DATA false
+static const uint32_t POLL_REPLY_INTERVAL = 10 * 1000;
 
 struct map_entry {
   struct sockaddr_storage addr;
@@ -72,19 +73,15 @@ void artnet_initialize(void) {
   sta_context.interface = wifi_get_sta_interface();
 }
 
-int create_socket(esp_netif_t *interface) {
+int create_socket(esp_netif_t *interface, const char *context_name) {
   int sock = lwip_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
   if (sock < 0) {
-    ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+    ESP_LOGE(TAG, "Unable to create %s socket: errno %d", context_name, errno);
     return sock;
   }
 
   struct ifreq ifr;
-  bool up = esp_netif_is_netif_up(interface);
-  ESP_LOGI(TAG, "interface up: %d", up);
-
   ESP_ERROR_CHECK(esp_netif_get_netif_impl_name(interface, ifr.ifr_name));
-  ESP_LOGI(TAG, "interface name: %s", ifr.ifr_name);
 
   int ret = setsockopt(
       sock,
@@ -96,7 +93,8 @@ int create_socket(esp_netif_t *interface) {
   if (ret < 0) {
     ESP_LOGE(
         TAG,
-        "Unable to bind socket to specified interface: errno %d",
+        "Unable to bind %s socket to specified interface: errno %d",
+        context_name,
         errno
     );
     lwip_close(sock);
@@ -106,13 +104,13 @@ int create_socket(esp_netif_t *interface) {
   return sock;
 }
 
-int create_and_bind_socket(esp_netif_t *interface) {
-  int sock = create_socket(interface);
+int create_and_bind_socket(esp_netif_t *interface, const char *context_name) {
+  int sock = create_socket(interface, context_name);
   if (sock < 0) {
-    ESP_LOGE(TAG, "Failed to create socket");
+    ESP_LOGE(TAG, "Failed to create %s socket", context_name);
     return -1;
   }
-  ESP_LOGI(TAG, "Socket created");
+  ESP_LOGI(TAG, "%s socket created", context_name);
 
   esp_netif_ip_info_t ip_info;
   ESP_ERROR_CHECK(esp_netif_get_ip_info(interface, &ip_info));
@@ -122,16 +120,21 @@ int create_and_bind_socket(esp_netif_t *interface) {
   dest_addr.sin_family = AF_INET;
   dest_addr.sin_port = htons(ARTNET_PORT);
 
-  ESP_LOGI(TAG, "binding to ip:" IPSTR, IP2STR(&ip_info.ip));
+  ESP_LOGI(
+      TAG,
+      "binding to ip (%s): " IPSTR,
+      context_name,
+      IP2STR(&ip_info.ip)
+  );
 
   int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
   if (err < 0) {
-    ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
+    ESP_LOGE(TAG, "%s socket unable to bind: errno %d", context_name, errno);
     shutdown(sock, 0);
     lwip_close(sock);
     return -1;
   }
-  ESP_LOGI(TAG, "Socket bound, port %d", ARTNET_PORT);
+  ESP_LOGI(TAG, "%s socket bound, port %d", context_name, ARTNET_PORT);
 
   return sock;
 }
@@ -188,8 +191,6 @@ static void free_map_entry(void *item) {
 }
 
 static void send_poll_reply_to_socket(int sock, esp_netif_t *interface) {
-  ESP_LOGI(TAG, "Sending poll reply");
-
   esp_netif_ip_info_t ip_info;
   ESP_ERROR_CHECK(esp_netif_get_ip_info(interface, &ip_info));
 
@@ -232,18 +233,19 @@ static void send_poll_reply_to_socket(int sock, esp_netif_t *interface) {
       sizeof(dest_addr)
   );
   if (err < 0) {
-    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+    ESP_LOGE(TAG, "Error occurred during sending poll reply: errno %d", errno);
   }
 }
 
-static void send_poll_reply_to_interface(const esp_netif_t *interface) {
-  int sock = create_socket(interface);
+static void send_periodic_poll_reply(struct listener_context *context) {
+  int sock = create_socket(context->interface, context->name);
   if (sock < 0) {
-    ESP_LOGE(TAG, "Failed to create socket");
+    ESP_LOGE(TAG, "Failed to create %s socket", context->name);
     return;
   }
 
-  send_poll_reply_to_socket(sock, interface);
+  ESP_LOGI(TAG, "Sending periodic poll reply (%s)", context->name);
+  send_poll_reply_to_socket(sock, context->interface);
   lwip_shutdown(sock, 0);
   lwip_close(sock);
 }
@@ -255,7 +257,7 @@ static void handle_op_poll(
     const uint8_t *packet,
     int len
 ) {
-  ESP_LOGI(TAG, "Received poll");
+  ESP_LOGI(TAG, "Received poll, sending poll reply");
   send_poll_reply_to_socket(sock, interface);
 }
 
@@ -476,14 +478,14 @@ void send_poll_reply_on_connect(void *parameter) {
     );
 
     if (bits & dmxbox_wifi_ap_sta_connected) {
-      send_poll_reply_to_interface(ap_context.interface);
+      send_periodic_poll_reply(&ap_context);
     }
 
     if (bits & dmxbox_wifi_sta_connected) {
-      send_poll_reply_to_interface(sta_context.interface);
+      send_periodic_poll_reply(&sta_context);
     }
 
-    vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
+    vTaskDelay(POLL_REPLY_INTERVAL / portTICK_PERIOD_MS);
   }
 }
 
@@ -541,7 +543,7 @@ void artnet_loop(void *parameter) {
     );
 
     ESP_LOGI(TAG, "Creating %s socket", context->name);
-    context->sock = create_and_bind_socket(context->interface);
+    context->sock = create_and_bind_socket(context->interface, context->name);
     if (context->sock != -1) {
       xTaskCreate(
           artnet_receive_loop,

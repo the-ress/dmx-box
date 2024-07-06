@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "parcel -p 8000",
     "build": "parcel build",
-    "build:nomap": "npm run build && rimraf dist/*.map"
+    "build:nomap": "npm run build && rimraf --glob dist/*.map"
   },
   "author": "",
   "license": "UNLICENSED",
