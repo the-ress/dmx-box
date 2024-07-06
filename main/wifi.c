@@ -16,7 +16,7 @@
 #include "storage.h"
 #include "wifi.h"
 
-static const char *TAG = "wifi-setup";
+static const char *TAG = "dmxbox_wifi";
 
 #define CONFIG_WIFI_AP_SSID "DmxBox_"
 #define CONFIG_WIFI_AP_PASSWORD "cue-gobo-fresnel"
@@ -50,68 +50,116 @@ static int retry_num = 0;
 esp_netif_t *ap_interface;
 esp_netif_t *sta_interface;
 
+static void dmxbox_wifi_on_ap_start(void) {
+  ESP_LOGI(TAG, "AP started");
+  xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_stopped);
+  xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_started);
+}
+
+static void dmxbox_wifi_on_ap_stop(void) {
+  ESP_LOGI(TAG, "AP stopped");
+  xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_started);
+  xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_stopped);
+}
+
+static void
+dmxbox_wifi_on_ap_staconnected(const wifi_event_ap_staconnected_t *event) {
+  ESP_LOGI(TAG, "station " MACSTR " join, AID=%d", MAC2STR(event->mac),
+           event->aid);
+
+  led_set_state(AP_MODE_LED_GPIO, 1);
+
+  xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_sta_connected);
+}
+
+static void dmxbox_wifi_on_ap_stadisconnected(
+    const wifi_event_ap_stadisconnected_t *event) {
+  ESP_LOGI(TAG, "station " MACSTR " leave, AID=%d", MAC2STR(event->mac),
+           event->aid);
+
+  wifi_sta_list_t sta_list;
+  esp_wifi_ap_get_sta_list(&sta_list);
+
+  ESP_LOGI(TAG, "%d stations remain connected ", sta_list.num);
+  led_set_state(AP_MODE_LED_GPIO, sta_list.num != 0);
+}
+
+static void dmxbox_wifi_on_sta_stop() {
+  ESP_LOGI(TAG, "disconnected from AP as STA");
+  led_set_state(CLIENT_MODE_LED_GPIO, 0);
+  xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
+  xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_disconnected);
+
+  if (get_sta_mode_enabled()) {
+    if (retry_num < CONFIG_WIFI_STA_MAXIMUM_RETRY) {
+      esp_wifi_connect();
+      retry_num++;
+      ESP_LOGI(TAG, "retry to connect to AP as STA");
+    } else {
+      xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_fail);
+    }
+    ESP_LOGI(TAG, "connect to AP as STA fail");
+  }
+}
+
+static void dmxbox_wifi_on_sta_got_ip(const ip_event_got_ip_t *event) {
+  led_set_state(CLIENT_MODE_LED_GPIO, 1);
+
+  ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+  retry_num = 0;
+  xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_disconnected);
+  xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
+}
+
+static void dmxbox_wifi_on_wifi_event(int32_t event_id,
+                                      const void *event_data) {
+  switch (event_id) {
+  case WIFI_EVENT_AP_START:
+    dmxbox_wifi_on_ap_start();
+    break;
+
+  case WIFI_EVENT_AP_STOP:
+    dmxbox_wifi_on_ap_stop();
+    break;
+
+  case WIFI_EVENT_AP_STACONNECTED:
+    dmxbox_wifi_on_ap_staconnected(event_data);
+    break;
+
+  case WIFI_EVENT_AP_STADISCONNECTED:
+    dmxbox_wifi_on_ap_stadisconnected(event_data);
+    break;
+
+  case WIFI_EVENT_STA_START:
+    esp_wifi_connect();
+    break;
+
+  case WIFI_EVENT_STA_STOP:
+    dmxbox_wifi_on_sta_stop();
+    break;
+
+  default:
+    break;
+  }
+}
+
+static void dmxbox_wifi_on_ip_event(int32_t event_id, void *event_data) {
+  switch (event_id) {
+  case IP_EVENT_STA_GOT_IP:
+    dmxbox_wifi_on_sta_got_ip(event_data);
+    break;
+
+  default:
+    break;
+  }
+}
+
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data) {
-  if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_START) {
-    ESP_LOGI(TAG, "AP started");
-    xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_stopped);
-    xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_started);
-  } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STOP) {
-    ESP_LOGI(TAG, "AP stopped");
-    xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_started);
-    xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_stopped);
-  } else if (event_base == WIFI_EVENT &&
-             event_id == WIFI_EVENT_AP_STACONNECTED) {
-    wifi_event_ap_staconnected_t *event =
-        (wifi_event_ap_staconnected_t *)event_data;
-    ESP_LOGI(TAG, "station " MACSTR " join, AID=%d", MAC2STR(event->mac),
-             event->aid);
-
-    led_set_state(AP_MODE_LED_GPIO, 1);
-
-    xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_sta_connected);
-  } else if (event_base == WIFI_EVENT &&
-             event_id == WIFI_EVENT_AP_STADISCONNECTED) {
-    wifi_event_ap_stadisconnected_t *event =
-        (wifi_event_ap_stadisconnected_t *)event_data;
-    ESP_LOGI(TAG, "station " MACSTR " leave, AID=%d", MAC2STR(event->mac),
-             event->aid);
-
-    wifi_sta_list_t sta_list;
-    esp_wifi_ap_get_sta_list(&sta_list);
-
-    ESP_LOGI(TAG, "%d stations remain connected ", sta_list.num);
-
-    if (sta_list.num == 0) {
-      led_set_state(AP_MODE_LED_GPIO, 0);
-    }
-  } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-    esp_wifi_connect();
-  } else if (event_base == WIFI_EVENT &&
-             event_id == WIFI_EVENT_STA_DISCONNECTED) {
-    ESP_LOGI(TAG, "disconnected from AP as STA");
-    led_set_state(CLIENT_MODE_LED_GPIO, 0);
-    xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
-    xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_disconnected);
-
-    if (get_sta_mode_enabled()) {
-      if (retry_num < CONFIG_WIFI_STA_MAXIMUM_RETRY) {
-        esp_wifi_connect();
-        retry_num++;
-        ESP_LOGI(TAG, "retry to connect to AP as STA");
-      } else {
-        xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_fail);
-      }
-      ESP_LOGI(TAG, "connect to AP as STA fail");
-    }
-  } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-    led_set_state(CLIENT_MODE_LED_GPIO, 1);
-
-    ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-    ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
-    retry_num = 0;
-    xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_disconnected);
-    xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
+  if (event_base == WIFI_EVENT) {
+    dmxbox_wifi_on_wifi_event(event_id, event_data);
+  } else if (event_base == IP_EVENT) {
+    dmxbox_wifi_on_ip_event(event_id, event_data);
   }
 }
 
@@ -124,16 +172,11 @@ void wifi_init(void) {
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-  esp_event_handler_instance_t instance_any_id;
-  esp_event_handler_instance_t instance_got_ip;
+  ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                             &wifi_event_handler, NULL));
 
-  ESP_ERROR_CHECK(esp_event_handler_instance_register(
-      WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL,
-      &instance_any_id));
-
-  ESP_ERROR_CHECK(esp_event_handler_instance_register(
-      IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL,
-      &instance_got_ip));
+  ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                                             &wifi_event_handler, NULL));
 
   ap_interface = esp_netif_create_default_wifi_ap();
   sta_interface = esp_netif_create_default_wifi_sta();
