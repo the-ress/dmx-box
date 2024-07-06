@@ -86,11 +86,19 @@ int create_socket(esp_netif_t *interface) {
   ESP_ERROR_CHECK(esp_netif_get_netif_impl_name(interface, ifr.ifr_name));
   ESP_LOGI(TAG, "interface name: %s", ifr.ifr_name);
 
-  int ret = setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr,
-                       sizeof(struct ifreq));
+  int ret = setsockopt(
+      sock,
+      SOL_SOCKET,
+      SO_BINDTODEVICE,
+      (void *)&ifr,
+      sizeof(struct ifreq)
+  );
   if (ret < 0) {
-    ESP_LOGE(TAG, "Unable to bind socket to specified interface: errno %d",
-             errno);
+    ESP_LOGE(
+        TAG,
+        "Unable to bind socket to specified interface: errno %d",
+        errno
+    );
     lwip_close(sock);
     return ret;
   }
@@ -215,8 +223,14 @@ static void send_poll_reply_to_socket(int sock, esp_netif_t *interface) {
   dest_addr.sin_family = AF_INET;
   dest_addr.sin_port = htons(ARTNET_PORT);
 
-  int err = sendto(sock, (uint8_t *)&reply, sizeof(reply), 0,
-                   (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+  int err = sendto(
+      sock,
+      (uint8_t *)&reply,
+      sizeof(reply),
+      0,
+      (struct sockaddr *)&dest_addr,
+      sizeof(dest_addr)
+  );
   if (err < 0) {
     ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
   }
@@ -234,15 +248,22 @@ static void send_poll_reply_to_interface(const esp_netif_t *interface) {
   lwip_close(sock);
 }
 
-static void handle_op_poll(int sock, esp_netif_t *interface,
-                           const struct sockaddr_storage *source_addr,
-                           const uint8_t *packet, int len) {
+static void handle_op_poll(
+    int sock,
+    esp_netif_t *interface,
+    const struct sockaddr_storage *source_addr,
+    const uint8_t *packet,
+    int len
+) {
   ESP_LOGI(TAG, "Received poll");
   send_poll_reply_to_socket(sock, interface);
 }
 
-static void apply_changes(const uint8_t *last_data, const uint8_t *current_data,
-                          uint16_t data_length) {
+static void apply_changes(
+    const uint8_t *last_data,
+    const uint8_t *current_data,
+    uint16_t data_length
+) {
   taskENTER_CRITICAL(&artnet_spinlock);
   for (int i = 0; i < data_length; i++) {
     if (current_data[i] != last_data[i]) {
@@ -256,9 +277,12 @@ static void apply_changes(const uint8_t *last_data, const uint8_t *current_data,
   }
 }
 
-static void handle_dmx_data(const uint8_t *data, uint16_t data_length,
-                            const struct sockaddr_storage *source_addr,
-                            const char *addr_str) {
+static void handle_dmx_data(
+    const uint8_t *data,
+    uint16_t data_length,
+    const struct sockaddr_storage *source_addr,
+    const char *addr_str
+) {
   uint8_t *last_data;
   struct map_entry entry = {.addr = *source_addr};
   bool first_data_from_client = false;
@@ -286,9 +310,13 @@ static void handle_dmx_data(const uint8_t *data, uint16_t data_length,
   }
 }
 
-static void handle_op_dmx(int sock, const struct sockaddr_storage *source_addr,
-                          const char *addr_str, const uint8_t *packet,
-                          int len) {
+static void handle_op_dmx(
+    int sock,
+    const struct sockaddr_storage *source_addr,
+    const char *addr_str,
+    const uint8_t *packet,
+    int len
+) {
   if (LOG_DMX_DATA) {
     ESP_LOGI(TAG, "Received DMX data from %s", addr_str);
   }
@@ -320,8 +348,12 @@ static void handle_op_dmx(int sock, const struct sockaddr_storage *source_addr,
   }
 
   if ((len - 18) < data_length) {
-    ESP_LOGE(TAG, "Data length mismatch: expected %d, got %d", data_length,
-             len - 18);
+    ESP_LOGE(
+        TAG,
+        "Data length mismatch: expected %d, got %d",
+        data_length,
+        len - 18
+    );
     return;
   }
 
@@ -334,22 +366,36 @@ static void handle_op_dmx(int sock, const struct sockaddr_storage *source_addr,
     handle_dmx_data(packet + 18, data_length, source_addr, addr_str);
   } else {
     if (LOG_DMX_DATA) {
-      ESP_LOGI(TAG, "Received data for unknown universe %d from %s", universe,
-               addr_str);
+      ESP_LOGI(
+          TAG,
+          "Received data for unknown universe %d from %s",
+          universe,
+          addr_str
+      );
     }
   }
 }
 
-static void handle_packet(int sock, esp_netif_t *interface,
-                          const struct sockaddr_storage *source_addr,
-                          const uint8_t *packet, int len) {
+static void handle_packet(
+    int sock,
+    esp_netif_t *interface,
+    const struct sockaddr_storage *source_addr,
+    const uint8_t *packet,
+    int len
+) {
   char addr_str[128];
   if (source_addr->ss_family == PF_INET) {
-    inet_ntoa_r(((struct sockaddr_in *)source_addr)->sin_addr, addr_str,
-                sizeof(addr_str) - 1);
+    inet_ntoa_r(
+        ((struct sockaddr_in *)source_addr)->sin_addr,
+        addr_str,
+        sizeof(addr_str) - 1
+    );
   } else if (source_addr->ss_family == PF_INET6) {
-    inet6_ntoa_r(((struct sockaddr_in6 *)source_addr)->sin6_addr, addr_str,
-                 sizeof(addr_str) - 1);
+    inet6_ntoa_r(
+        ((struct sockaddr_in6 *)source_addr)->sin6_addr,
+        addr_str,
+        sizeof(addr_str) - 1
+    );
   }
 
   // ESP_LOGI(TAG, "Received %d bytes from %s", len, addr_str);
@@ -421,8 +467,13 @@ void send_poll_reply_on_connect(void *parameter) {
   const EventBits_t events =
       dmxbox_wifi_ap_sta_connected | dmxbox_wifi_sta_connected;
   while (1) {
-    EventBits_t bits = xEventGroupWaitBits(dmxbox_wifi_event_group, events,
-                                           pdFALSE, pdFALSE, portMAX_DELAY);
+    EventBits_t bits = xEventGroupWaitBits(
+        dmxbox_wifi_event_group,
+        events,
+        pdFALSE,
+        pdFALSE,
+        portMAX_DELAY
+    );
 
     if (bits & dmxbox_wifi_ap_sta_connected) {
       send_poll_reply_to_interface(ap_context.interface);
@@ -445,9 +496,14 @@ void artnet_receive_loop(void *parameter) {
   while (1) {
     struct sockaddr_storage source_addr;
     socklen_t socklen = sizeof(source_addr);
-    int len =
-        recvfrom(sock, context->packet_buffer, sizeof(context->packet_buffer),
-                 0, (struct sockaddr *)&source_addr, &socklen);
+    int len = recvfrom(
+        sock,
+        context->packet_buffer,
+        sizeof(context->packet_buffer),
+        0,
+        (struct sockaddr *)&source_addr,
+        &socklen
+    );
 
     // Error occurred during receiving
     if (len < 0) {
@@ -459,8 +515,13 @@ void artnet_receive_loop(void *parameter) {
       continue;
     }
 
-    handle_packet(sock, context->interface, &source_addr,
-                  context->packet_buffer, len);
+    handle_packet(
+        sock,
+        context->interface,
+        &source_addr,
+        context->packet_buffer,
+        len
+    );
   }
 
   vTaskDelete(NULL);
@@ -471,19 +532,35 @@ void artnet_loop(void *parameter) {
 
   ESP_LOGI(TAG, "ArtNet %s receive task started", context->name);
   while (1) {
-    xEventGroupWaitBits(dmxbox_wifi_event_group, context->connected_bit,
-                        pdFALSE, pdFALSE, portMAX_DELAY);
+    xEventGroupWaitBits(
+        dmxbox_wifi_event_group,
+        context->connected_bit,
+        pdFALSE,
+        pdFALSE,
+        portMAX_DELAY
+    );
 
     ESP_LOGI(TAG, "Creating %s socket", context->name);
     context->sock = create_and_bind_socket(context->interface);
     if (context->sock != -1) {
-      xTaskCreate(artnet_receive_loop, context->receive_task_name, 10000,
-                  (void *)context, 2, NULL);
+      xTaskCreate(
+          artnet_receive_loop,
+          context->receive_task_name,
+          10000,
+          (void *)context,
+          2,
+          NULL
+      );
 
       vTaskDelay(50 / portTICK_PERIOD_MS);
 
-      xEventGroupWaitBits(dmxbox_wifi_event_group, context->disconnected_bit,
-                          pdFALSE, pdFALSE, portMAX_DELAY);
+      xEventGroupWaitBits(
+          dmxbox_wifi_event_group,
+          context->disconnected_bit,
+          pdFALSE,
+          pdFALSE,
+          portMAX_DELAY
+      );
 
       ESP_LOGI(TAG, "Shutting down %s socket", context->name);
       shutdown(context->sock, 0);
@@ -494,19 +571,45 @@ void artnet_loop(void *parameter) {
 }
 
 void artnet_receive_task(void *parameter) {
-  client_map = hashmap_new(sizeof(struct map_entry), 0, 0, 0, ip_hash,
-                           ip_compare, free_map_entry, NULL);
+  client_map = hashmap_new(
+      sizeof(struct map_entry),
+      0,
+      0,
+      0,
+      ip_hash,
+      ip_compare,
+      free_map_entry,
+      NULL
+  );
 
   xTaskCreate(reset_button_loop, "ArtNet reset", 4096, NULL, 1, NULL);
 
-  xTaskCreate(send_poll_reply_on_connect, "ArtNet poll reply", 4096, NULL, 1,
-              NULL);
+  xTaskCreate(
+      send_poll_reply_on_connect,
+      "ArtNet poll reply",
+      4096,
+      NULL,
+      1,
+      NULL
+  );
 
-  xTaskCreate(artnet_loop, "ArtNet AP loop", 10000, (void *)&ap_context, 2,
-              NULL);
+  xTaskCreate(
+      artnet_loop,
+      "ArtNet AP loop",
+      10000,
+      (void *)&ap_context,
+      2,
+      NULL
+  );
 
-  xTaskCreate(artnet_loop, "ArtNet STA loop", 10000, (void *)&sta_context, 2,
-              NULL);
+  xTaskCreate(
+      artnet_loop,
+      "ArtNet STA loop",
+      10000,
+      (void *)&sta_context,
+      2,
+      NULL
+  );
 
   vTaskDelete(NULL);
 }
