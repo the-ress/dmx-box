@@ -1,4 +1,4 @@
 build/
 .cache/
 node_modules/
-./sdkconfig
+sdkconfig
