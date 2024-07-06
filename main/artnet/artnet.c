@@ -13,6 +13,7 @@
 #include "artnet_const.h"
 #include "storage.h"
 #include "wifi.h"
+#include <stdint.h>
 
 static const char *TAG = "artnet";
 
@@ -35,7 +36,7 @@ struct listener_context
     char *poll_reply_task_name;
     EventBits_t connected_bit;
     EventBits_t disconnected_bit;
-    tcpip_adapter_if_t interface;
+    esp_netif_t *interface;
     int sock;
     uint8_t packet_buffer[MAX_PACKET_SIZE];
 };
@@ -50,9 +51,9 @@ struct listener_context ap_context = {
     .name = "AP",
     .receive_task_name = "ArtNet AP receive loop",
     .poll_reply_task_name = "ArtNet AP poll reply",
-    .interface = TCPIP_ADAPTER_IF_AP,
     .connected_bit = WIFI_AP_STARTED_BIT,
     .disconnected_bit = WIFI_AP_STOPPED_BIT,
+    .interface = NULL,
     .sock = -1,
 };
 
@@ -60,15 +61,21 @@ struct listener_context sta_context = {
     .name = "STA",
     .receive_task_name = "ArtNet STA receive loop",
     .poll_reply_task_name = "ArtNet STA poll reply",
-    .interface = TCPIP_ADAPTER_IF_STA,
     .connected_bit = WIFI_STA_CONNECTED_BIT,
     .disconnected_bit = WIFI_STA_DISCONNECTED_BIT,
+    .interface = NULL,
     .sock = -1,
 };
 
-int create_socket(tcpip_adapter_if_t interface)
+void artnet_initialize(void)
 {
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    ap_context.interface = wifi_get_ap_interface();
+    sta_context.interface = wifi_get_sta_interface();
+}
+
+int create_socket(esp_netif_t *interface)
+{
+    int sock = lwip_socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (sock < 0)
     {
         ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
@@ -76,35 +83,24 @@ int create_socket(tcpip_adapter_if_t interface)
     }
 
     struct ifreq ifr;
-    char *if_key = "WIFI_AP_DEF";
-    if (interface == TCPIP_ADAPTER_IF_STA)
-    {
-        if_key = "WIFI_STA_DEF";
-    }
-    esp_netif_t *if_handle = esp_netif_get_handle_from_ifkey(if_key);
-    if (!if_handle)
-    {
-        ESP_LOGE(TAG, "Unable to get interface handle for %s", if_key);
-        return -1;
-    }
-    bool up = esp_netif_is_netif_up(if_handle);
+    bool up = esp_netif_is_netif_up(interface);
     ESP_LOGI(TAG, "interface up: %d", up);
 
-    ESP_ERROR_CHECK(esp_netif_get_netif_impl_name(if_handle, ifr.ifr_name));
+    ESP_ERROR_CHECK(esp_netif_get_netif_impl_name(interface, ifr.ifr_name));
     ESP_LOGI(TAG, "interface name: %s", ifr.ifr_name);
 
     int ret = setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(struct ifreq));
     if (ret < 0)
     {
         ESP_LOGE(TAG, "Unable to bind socket to specified interface: errno %d", errno);
-        close(sock);
+        lwip_close(sock);
         return ret;
     }
 
     return sock;
 }
 
-int create_and_bind_socket(tcpip_adapter_if_t interface)
+int create_and_bind_socket(esp_netif_t *interface)
 {
     int sock = create_socket(interface);
     if (sock < 0)
@@ -114,8 +110,8 @@ int create_and_bind_socket(tcpip_adapter_if_t interface)
     }
     ESP_LOGI(TAG, "Socket created");
 
-    tcpip_adapter_ip_info_t ip_info;
-    tcpip_adapter_get_ip_info(interface, &ip_info);
+    esp_netif_ip_info_t ip_info;
+    ESP_ERROR_CHECK(esp_netif_get_ip_info(interface, &ip_info));
 
     struct sockaddr_in dest_addr;
     dest_addr.sin_addr.s_addr = ip_info.ip.addr;
@@ -129,7 +125,7 @@ int create_and_bind_socket(tcpip_adapter_if_t interface)
     {
         ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
         shutdown(sock, 0);
-        close(sock);
+        lwip_close(sock);
         return -1;
     }
     ESP_LOGI(TAG, "Socket bound, port %d", ARTNET_PORT);
@@ -199,12 +195,12 @@ static void free_map_entry(void *item)
     }
 }
 
-static void send_poll_reply_to_socket(int sock, tcpip_adapter_if_t interface)
+static void send_poll_reply_to_socket(int sock, esp_netif_t *interface)
 {
     ESP_LOGI(TAG, "Sending poll reply");
 
-    tcpip_adapter_ip_info_t ip_info;
-    tcpip_adapter_get_ip_info(interface, &ip_info);
+    esp_netif_ip_info_t ip_info;
+    ESP_ERROR_CHECK(esp_netif_get_ip_info(interface, &ip_info));
 
     struct artnet_reply_s reply = {0};
     memcpy(reply.id, PACKET_ID, sizeof(reply.id));
@@ -243,7 +239,7 @@ static void send_poll_reply_to_socket(int sock, tcpip_adapter_if_t interface)
     }
 }
 
-static void send_poll_reply(tcpip_adapter_if_t interface)
+static void send_poll_reply_to_interface(const esp_netif_t *interface)
 {
     int sock = create_socket(interface);
     if (sock < 0)
@@ -255,7 +251,7 @@ static void send_poll_reply(tcpip_adapter_if_t interface)
     send_poll_reply_to_socket(sock, interface);
 }
 
-static void handle_op_poll(int sock, tcpip_adapter_if_t interface, const struct sockaddr_storage *source_addr, const uint8_t *packet, int len)
+static void handle_op_poll(int sock, esp_netif_t *interface, const struct sockaddr_storage *source_addr, const uint8_t *packet, int len)
 {
     ESP_LOGI(TAG, "Received poll");
     send_poll_reply_to_socket(sock, interface);
@@ -376,7 +372,7 @@ static void handle_op_dmx(int sock, const struct sockaddr_storage *source_addr, 
     }
 }
 
-static void handle_packet(int sock, tcpip_adapter_if_t interface, const struct sockaddr_storage *source_addr, const uint8_t *packet, int len)
+static void handle_packet(int sock, esp_netif_t *interface, const struct sockaddr_storage *source_addr, const uint8_t *packet, int len)
 {
     char addr_str[128];
     if (source_addr->ss_family == PF_INET)
@@ -474,12 +470,12 @@ void send_poll_reply_on_connect(void *parameter)
 
         if (bits & WIFI_SHOULD_ADVERTISE_ARTNET_AP)
         {
-            send_poll_reply(TCPIP_ADAPTER_IF_AP);
+            send_poll_reply_to_interface(ap_context.interface);
         }
 
         if (bits & WIFI_SHOULD_ADVERTISE_ARTNET_STA)
         {
-            send_poll_reply(TCPIP_ADAPTER_IF_STA);
+            send_poll_reply_to_interface(sta_context.interface);
         }
     }
 }
@@ -550,13 +546,13 @@ void artnet_loop(void *parameter)
 
             ESP_LOGI(TAG, "Shutting down %s socket", context->name);
             shutdown(context->sock, 0);
-            close(context->sock);
+            lwip_close(context->sock);
             context->sock = -1;
         }
     }
 }
 
-void artnet_receive(void *parameter)
+void artnet_receive_task(void *parameter)
 {
     client_map = hashmap_new(sizeof(struct map_entry), 0, 0, 0, ip_hash, ip_compare, free_map_entry, NULL);
 

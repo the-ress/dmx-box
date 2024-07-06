@@ -30,7 +30,13 @@ static const char *TAG = "wifi-setup";
 #define CONFIG_WIFI_STA_AUTH_MODE WIFI_AUTH_WPA2_PSK
 #define CONFIG_WIFI_STA_MAXIMUM_RETRY 5
 
+struct wifi_config current_wifi_config;
+EventGroupHandle_t wifi_event_group;
+
 static int retry_num = 0;
+
+esp_netif_t *ap_interface;
+esp_netif_t *sta_interface;
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
@@ -133,8 +139,8 @@ void wifi_init(void)
                                                         NULL,
                                                         &instance_got_ip));
 
-    esp_netif_create_default_wifi_ap();
-    esp_netif_create_default_wifi_sta();
+    ap_interface = esp_netif_create_default_wifi_ap();
+    sta_interface = esp_netif_create_default_wifi_sta();
 
     // disable wifi power save to improve performance
     esp_wifi_set_ps(WIFI_PS_NONE);
@@ -313,3 +319,14 @@ void wifi_update_config(const struct wifi_config *new_config, bool sta_mode_enab
         ESP_ERROR_CHECK(esp_wifi_connect());
     }
 }
+
+esp_netif_t *wifi_get_ap_interface(void)
+{
+    return ap_interface;
+}
+
+esp_netif_t *wifi_get_sta_interface(void)
+{
+    return sta_interface;
+}
+

@@ -73,12 +73,14 @@ void app_main(void)
         set_first_initialization_complete(1);
     }
 
+    artnet_initialize();
+
     ESP_ERROR_CHECK(init_fs());
     start_webserver();
     start_dns_server();
 
     xTaskCreate(
-        artnet_receive,
+        artnet_receive_task,
         "ArtNet",
         10000,
         NULL,
@@ -86,7 +88,7 @@ void app_main(void)
         NULL);
 
     xTaskCreate(
-        dmx_receive,
+        dmx_receive_task,
         "DMX receive",
         10000,
         NULL,
@@ -94,14 +96,14 @@ void app_main(void)
         NULL);
 
     xTaskCreate(
-        dmx_send,
+        dmx_send_task,
         "DMX send",
         10000,
         NULL,
         3,
         NULL);
 
-    uint8_t data[DMX_MAX_PACKET_SIZE];
+    uint8_t data[DMX_PACKET_SIZE_MAX];
     while (1)
     {
         bool artnet_active;
@@ -110,7 +112,7 @@ void app_main(void)
         recalc(data, &artnet_active, &dmx_out_active);
 
         taskENTER_CRITICAL(&dmx_out_spinlock);
-        memcpy(dmx_out_data, data, DMX_MAX_PACKET_SIZE);
+        memcpy(dmx_out_data, data, DMX_PACKET_SIZE_MAX);
         taskEXIT_CRITICAL(&dmx_out_spinlock);
 
         set_artnet_active(artnet_active);

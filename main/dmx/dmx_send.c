@@ -7,42 +7,69 @@
 
 #define DMX_SEND_PERIOD 30
 
+#define DMX_SEND_BACKOFF 200
+
 static const char *TAG = "dmx_send";
 
 portMUX_TYPE dmx_out_spinlock = portMUX_INITIALIZER_UNLOCKED;
-uint8_t dmx_out_data[DMX_MAX_PACKET_SIZE] = {0};
+uint8_t dmx_out_data[DMX_PACKET_SIZE_MAX] = {0};
 
-static void configure_dmx_out(void)
+static esp_err_t configure_dmx_out(void)
 {
     ESP_LOGI(TAG, "Configuring DMX OUT");
 
-    const dmx_config_t config = DMX_DEFAULT_CONFIG;
-    ESP_ERROR_CHECK(dmx_param_config(DMX_OUT_NUM, &config));
-    ESP_ERROR_CHECK(dmx_set_pin(DMX_OUT_NUM, DMX_OUT_GPIO, DMX_PIN_NO_CHANGE, DMX_PIN_NO_CHANGE));
-    ESP_ERROR_CHECK(dmx_driver_install(DMX_OUT_NUM, DMX_MAX_PACKET_SIZE, 10, NULL, ESP_INTR_FLAG_IRAM));
-    ESP_ERROR_CHECK(dmx_set_mode(DMX_OUT_NUM, DMX_MODE_TX));
+    const dmx_config_t config = DMX_CONFIG_DEFAULT;
+    if (!dmx_driver_install(DMX_OUT_NUM, &config, NULL, 0))
+    {
+        return ESP_FAIL;
+    }
+
+    if (!dmx_set_pin(DMX_OUT_NUM, DMX_OUT_GPIO, DMX_PIN_NO_CHANGE, DMX_PIN_NO_CHANGE))
+    {
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
 }
 
-void dmx_send(void *parameter)
+void dmx_send_task(void *parameter)
 {
     ESP_LOGI(TAG, "DMX send task started");
 
-    configure_dmx_out();
+    ESP_ERROR_CHECK(configure_dmx_out());
 
     while (1)
     {
         // write the packet to the DMX driver
         taskENTER_CRITICAL(&dmx_out_spinlock);
-        ESP_ERROR_CHECK(dmx_write_packet(DMX_OUT_NUM, dmx_out_data, DMX_MAX_PACKET_SIZE));
+        size_t bytes_written = dmx_write(DMX_OUT_NUM, dmx_out_data, DMX_PACKET_SIZE_MAX);
         taskEXIT_CRITICAL(&dmx_out_spinlock);
 
+        if (bytes_written == 0)
+        {
+            ESP_LOGE(TAG, "Unable to write DMX data");
+            vTaskDelay(DMX_SEND_BACKOFF / portTICK_PERIOD_MS);
+            continue;
+        }
+
         // transmit the packet on the DMX bus
-        ESP_ERROR_CHECK(dmx_tx_packet(DMX_OUT_NUM));
+        size_t bytes_sent = dmx_send(DMX_OUT_NUM);
+        if (bytes_sent == 0)
+        {
+            ESP_LOGE(TAG, "Unable to send DMX data");
+            vTaskDelay(DMX_SEND_BACKOFF / portTICK_PERIOD_MS);
+            continue;
+        }
 
         vTaskDelay(DMX_SEND_PERIOD / portTICK_PERIOD_MS);
 
         // block until the packet is done being sent
-        ESP_ERROR_CHECK(dmx_wait_tx_done(DMX_OUT_NUM, DMX_TX_PACKET_TOUT_TICK));
+        if (!dmx_wait_sent(DMX_OUT_NUM, DMX_TIMEOUT_TICK))
+        {
+            ESP_LOGE(TAG, "DMX send timed out");
+            vTaskDelay(DMX_SEND_BACKOFF / portTICK_PERIOD_MS);
+            continue;
+        }
     }
 }
 

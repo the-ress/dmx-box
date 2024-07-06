@@ -12,7 +12,7 @@
 #define WIFI_SHOULD_ADVERTISE_ARTNET_AP BIT5
 #define WIFI_SHOULD_ADVERTISE_ARTNET_STA BIT6
 
-struct wifi_config
+extern struct wifi_config
 {
     struct
     {
@@ -30,10 +30,12 @@ struct wifi_config
     } sta;
 } current_wifi_config;
 
-
 /* FreeRTOS event group to signal when we are connected*/
-EventGroupHandle_t wifi_event_group;
+extern EventGroupHandle_t wifi_event_group;
 
 void wifi_start();
 void wifi_set_defaults(void);
 void wifi_update_config(const struct wifi_config *new_config, bool sta_mode_enabled);
+
+esp_netif_t *wifi_get_ap_interface(void);
+esp_netif_t *wifi_get_sta_interface(void);

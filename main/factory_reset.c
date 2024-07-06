@@ -1,7 +1,5 @@
-#include "freertos/FreeRTOS.h"
 #include "esp_log.h"
 
-#include "sdkconfig.h"
 #include "const.h"
 #include "led.h"
 #include "storage.h"

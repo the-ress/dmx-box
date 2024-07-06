@@ -6,6 +6,7 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include "lwip/netdb.h"
+#include "strings.h"
 
 static const char *TAG = "dns";
 
@@ -84,6 +85,7 @@ static int parse_dns_request(char *req, size_t req_len, char *dns_reply, size_t 
 {
     if (req_len > dns_reply_max_len)
     {
+        ESP_LOGW(TAG, "DNS request too large: %zu", req_len);
         return -1;
     }
 
@@ -99,6 +101,7 @@ static int parse_dns_request(char *req, size_t req_len, char *dns_reply, size_t 
     // Not a standard query
     if ((header->flags & OPCODE_MASK) != 0)
     {
+        ESP_LOGW(TAG, "Not a standard DNS query");
         return 0;
     }
 
@@ -111,6 +114,7 @@ static int parse_dns_request(char *req, size_t req_len, char *dns_reply, size_t 
     int reply_len = qd_count * sizeof(dns_answer_t) + req_len;
     if (reply_len > dns_reply_max_len)
     {
+        ESP_LOGW(TAG, "DNS reply too large: %d", reply_len);
         return -1;
     }
 
@@ -150,7 +154,7 @@ static int parse_dns_request(char *req, size_t req_len, char *dns_reply, size_t 
 
                 esp_netif_ip_info_t ip_info;
                 esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"), &ip_info);
-                ESP_LOGD(TAG, "Answer with PTR offset: 0x%X and IP 0x%X", ntohs(answer->ptr_offset), ip_info.ip.addr);
+                ESP_LOGD(TAG, "Answer with PTR offset: 0x%X and IP 0x%X", (unsigned int)ntohs(answer->ptr_offset), (unsigned int)ip_info.ip.addr);
 
                 answer->addr_len = htons(sizeof(ip_info.ip.addr));
                 answer->ip_addr = ip_info.ip.addr;
@@ -182,7 +186,7 @@ void dns_server_task(void *pvParameters)
         ip_protocol = IPPROTO_IP;
         inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
 
-        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        int sock = lwip_socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (sock < 0)
         {
             ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
@@ -190,10 +194,11 @@ void dns_server_task(void *pvParameters)
         }
         ESP_LOGI(TAG, "Socket created");
 
-        int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+        int err = lwip_bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
         if (err < 0)
         {
             ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
+            break;
         }
         ESP_LOGI(TAG, "Socket bound, port %d", DNS_PORT);
 
@@ -201,13 +206,13 @@ void dns_server_task(void *pvParameters)
         {
             struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
             socklen_t socklen = sizeof(source_addr);
-            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+            int len = lwip_recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
 
             // Error occurred during receiving
             if (len < 0)
             {
                 ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
-                close(sock);
+                lwip_close(sock);
                 break;
             }
             // Data received
@@ -236,7 +241,7 @@ void dns_server_task(void *pvParameters)
                 }
                 else
                 {
-                    int err = sendto(sock, reply, reply_len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+                    int err = lwip_sendto(sock, reply, reply_len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
                     if (err < 0)
                     {
                         ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
@@ -249,8 +254,8 @@ void dns_server_task(void *pvParameters)
         if (sock != -1)
         {
             ESP_LOGE(TAG, "Shutting down socket");
-            shutdown(sock, 0);
-            close(sock);
+            lwip_shutdown(sock, 0);
+            lwip_close(sock);
         }
     }
     vTaskDelete(NULL);
