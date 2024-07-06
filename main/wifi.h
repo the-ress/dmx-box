@@ -32,8 +32,10 @@ extern EventGroupHandle_t dmxbox_wifi_event_group;
 
 void wifi_start();
 void wifi_set_defaults(void);
-void wifi_update_config(const dmxbox_wifi_config_t *new_config,
-                        bool sta_mode_enabled);
+void wifi_update_config(
+    const dmxbox_wifi_config_t *new_config,
+    bool sta_mode_enabled
+);
 
 esp_netif_t *wifi_get_ap_interface(void);
 esp_netif_t *wifi_get_sta_interface(void);

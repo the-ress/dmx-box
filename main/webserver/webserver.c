@@ -21,8 +21,8 @@ static const char *TAG = "dmxbox_webserver";
 static char scratch[SCRATCH_BUFSIZE];
 
 /* Set HTTP response content type according to file extension */
-static esp_err_t set_content_type_from_file(httpd_req_t *req,
-                                            const char *filepath) {
+static esp_err_t
+set_content_type_from_file(httpd_req_t *req, const char *filepath) {
   const char *type = "text/plain";
   if (CHECK_FILE_EXTENSION(filepath, ".html")) {
     type = "text/html";
@@ -78,8 +78,11 @@ static esp_err_t common_get_handler(httpd_req_t *req) {
         /* Abort sending file */
         httpd_resp_sendstr_chunk(req, NULL);
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
-                            "Failed to send file");
+        httpd_resp_send_err(
+            req,
+            HTTPD_500_INTERNAL_SERVER_ERROR,
+            "Failed to send file"
+        );
         return ESP_FAIL;
       }
     }
@@ -155,8 +158,11 @@ static esp_err_t api_wifi_config_get_handler(httpd_req_t *req) {
 
   cJSON_AddStringToObject(ap, "ssid", dmxbox_wifi_config.ap.ssid);
   cJSON_AddStringToObject(ap, "password", dmxbox_wifi_config.ap.password);
-  cJSON_AddStringToObject(ap, "auth_mode",
-                          auth_mode_to_string(dmxbox_wifi_config.ap.auth_mode));
+  cJSON_AddStringToObject(
+      ap,
+      "auth_mode",
+      auth_mode_to_string(dmxbox_wifi_config.ap.auth_mode)
+  );
   cJSON_AddNumberToObject(ap, "channel", dmxbox_wifi_config.ap.channel);
 
   cJSON_AddBoolToObject(sta, "enabled", sta_mode_enabled);
@@ -164,7 +170,10 @@ static esp_err_t api_wifi_config_get_handler(httpd_req_t *req) {
   cJSON_AddStringToObject(sta, "ssid", dmxbox_wifi_config.sta.ssid);
   cJSON_AddStringToObject(sta, "password", dmxbox_wifi_config.sta.password);
   cJSON_AddStringToObject(
-      sta, "auth_mode", auth_mode_to_string(dmxbox_wifi_config.sta.auth_mode));
+      sta,
+      "auth_mode",
+      auth_mode_to_string(dmxbox_wifi_config.sta.auth_mode)
+  );
 
   const char *result = cJSON_Print(root);
   httpd_resp_sendstr(req, result);
@@ -179,16 +188,22 @@ static esp_err_t api_wifi_config_put_handler(httpd_req_t *req) {
   int received = 0;
   if (total_len >= SCRATCH_BUFSIZE) {
     /* Respond with 500 Internal Server Error */
-    httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
-                        "Content too long");
+    httpd_resp_send_err(
+        req,
+        HTTPD_500_INTERNAL_SERVER_ERROR,
+        "Content too long"
+    );
     return ESP_FAIL;
   }
   while (cur_len < total_len) {
     received = httpd_req_recv(req, scratch + cur_len, total_len);
     if (received <= 0) {
       /* Respond with 500 Internal Server Error */
-      httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
-                          "Failed to save config");
+      httpd_resp_send_err(
+          req,
+          HTTPD_500_INTERNAL_SERVER_ERROR,
+          "Failed to save config"
+      );
       return ESP_FAIL;
     }
     cur_len += received;
@@ -215,12 +230,21 @@ static esp_err_t api_wifi_config_put_handler(httpd_req_t *req) {
   ESP_LOGI(
       TAG,
       "Got ap values: ssid = %s, pw = %s, auth_mode = %s (%d), channel = %d",
-      ap_ssid, ap_password, ap_auth_mode_string, ap_auth_mode, ap_channel);
+      ap_ssid,
+      ap_password,
+      ap_auth_mode_string,
+      ap_auth_mode,
+      ap_channel
+  );
   ESP_LOGI(
       TAG,
       "Got sta values: enabled = %d, ssid = %s, pw = %s, auth_mode = %s (%d)",
-      sta_mode_enabled, sta_ssid, sta_password, sta_auth_mode_string,
-      sta_auth_mode);
+      sta_mode_enabled,
+      sta_ssid,
+      sta_password,
+      sta_auth_mode_string,
+      sta_auth_mode
+  );
 
   dmxbox_wifi_config_t new_config;
   strlcpy(new_config.ap.ssid, ap_ssid, sizeof(new_config.ap.ssid));
@@ -229,8 +253,11 @@ static esp_err_t api_wifi_config_put_handler(httpd_req_t *req) {
   new_config.ap.channel = ap_channel;
 
   strlcpy(new_config.sta.ssid, sta_ssid, sizeof(new_config.sta.ssid));
-  strlcpy(new_config.sta.password, sta_password,
-          sizeof(new_config.sta.password));
+  strlcpy(
+      new_config.sta.password,
+      sta_password,
+      sizeof(new_config.sta.password)
+  );
   new_config.sta.auth_mode = sta_auth_mode;
 
   wifi_update_config(&new_config, sta_mode_enabled);

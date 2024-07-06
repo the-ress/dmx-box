@@ -1,123 +1,105 @@
-#include <string.h>
+#include "esp_dmx.h"
+#include "esp_log.h"
+#include "esp_spiffs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
-#include "esp_log.h"
-#include "esp_dmx.h"
-#include "esp_spiffs.h"
+#include <string.h>
 
 #include "artnet/artnet.h"
 #include "const.h"
 #include "dmx/dmx_receive.h"
 #include "dmx/dmx_send.h"
+#include "dns.h"
 #include "factory_reset.h"
 #include "led.h"
-#include "sdkconfig.h"
-#include "wifi.h"
-#include "storage.h"
 #include "recalc.h"
+#include "sdkconfig.h"
+#include "storage.h"
 #include "webserver/webserver.h"
-#include "dns.h"
+#include "wifi.h"
 
 static const char *TAG = "main";
 
 #define CONFIG_RECALC_PERIOD 100
 
-esp_err_t init_fs(void)
-{
-    esp_vfs_spiffs_conf_t conf = {
-        .base_path = "/www",
-        .partition_label = NULL,
-        .max_files = 5,
-        .format_if_mount_failed = false
-    };
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+esp_err_t init_fs(void) {
+  esp_vfs_spiffs_conf_t conf = {
+      .base_path = "/www",
+      .partition_label = NULL,
+      .max_files = 5,
+      .format_if_mount_failed = false
+  };
+  esp_err_t ret = esp_vfs_spiffs_register(&conf);
 
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount or format filesystem");
-        } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-        }
-        return ESP_FAIL;
-    }
-
-    size_t total = 0, used = 0;
-    ret = esp_spiffs_info(NULL, &total, &used);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+  if (ret != ESP_OK) {
+    if (ret == ESP_FAIL) {
+      ESP_LOGE(TAG, "Failed to mount or format filesystem");
+    } else if (ret == ESP_ERR_NOT_FOUND) {
+      ESP_LOGE(TAG, "Failed to find SPIFFS partition");
     } else {
-        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+      ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
     }
-    return ESP_OK;
+    return ESP_FAIL;
+  }
+
+  size_t total = 0, used = 0;
+  ret = esp_spiffs_info(NULL, &total, &used);
+  if (ret != ESP_OK) {
+    ESP_LOGE(
+        TAG,
+        "Failed to get SPIFFS partition information (%s)",
+        esp_err_to_name(ret)
+    );
+  } else {
+    ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+  }
+  return ESP_OK;
 }
 
-void app_main(void)
-{
-    ESP_LOGI(TAG, "App starting...");
+void app_main(void) {
+  ESP_LOGI(TAG, "App starting...");
 
-    configure_leds();
+  configure_leds();
 
-    handle_factory_reset();
+  handle_factory_reset();
 
-    ESP_ERROR_CHECK(led_set_state(POWER_LED_GPIO, 1));
+  ESP_ERROR_CHECK(led_set_state(POWER_LED_GPIO, 1));
 
-    storage_init();
-    wifi_start();
+  storage_init();
+  wifi_start();
 
-    if (!get_first_initialization_complete())
-    {
-        wifi_set_defaults();
-        set_first_initialization_complete(1);
-    }
+  if (!get_first_initialization_complete()) {
+    wifi_set_defaults();
+    set_first_initialization_complete(1);
+  }
 
-    artnet_initialize();
+  artnet_initialize();
 
-    ESP_ERROR_CHECK(init_fs());
-    start_webserver();
-    start_dns_server();
+  ESP_ERROR_CHECK(init_fs());
+  start_webserver();
+  start_dns_server();
 
-    xTaskCreate(
-        artnet_receive_task,
-        "ArtNet",
-        10000,
-        NULL,
-        2,
-        NULL);
+  xTaskCreate(artnet_receive_task, "ArtNet", 10000, NULL, 2, NULL);
 
-    xTaskCreate(
-        dmx_receive_task,
-        "DMX receive",
-        10000,
-        NULL,
-        2,
-        NULL);
+  xTaskCreate(dmx_receive_task, "DMX receive", 10000, NULL, 2, NULL);
 
-    xTaskCreate(
-        dmx_send_task,
-        "DMX send",
-        10000,
-        NULL,
-        3,
-        NULL);
+  xTaskCreate(dmx_send_task, "DMX send", 10000, NULL, 3, NULL);
 
-    uint8_t data[DMX_PACKET_SIZE_MAX];
-    while (1)
-    {
-        bool artnet_active;
-        bool dmx_out_active;
+  uint8_t data[DMX_PACKET_SIZE_MAX];
+  while (1) {
+    bool artnet_active;
+    bool dmx_out_active;
 
-        recalc(data, &artnet_active, &dmx_out_active);
+    recalc(data, &artnet_active, &dmx_out_active);
 
-        taskENTER_CRITICAL(&dmx_out_spinlock);
-        memcpy(dmx_out_data, data, DMX_PACKET_SIZE_MAX);
-        taskEXIT_CRITICAL(&dmx_out_spinlock);
+    taskENTER_CRITICAL(&dmx_out_spinlock);
+    memcpy(dmx_out_data, data, DMX_PACKET_SIZE_MAX);
+    taskEXIT_CRITICAL(&dmx_out_spinlock);
 
-        set_artnet_active(artnet_active);
-        set_dmx_out_active(dmx_out_active);
+    set_artnet_active(artnet_active);
+    set_dmx_out_active(dmx_out_active);
 
-        vTaskDelay(CONFIG_RECALC_PERIOD / portTICK_PERIOD_MS);
-    }
+    vTaskDelay(CONFIG_RECALC_PERIOD / portTICK_PERIOD_MS);
+  }
 }
