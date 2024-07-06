@@ -10,25 +10,50 @@ run_docker() {
     --rm \
     --tty \
     --volume .:/project \
-    --workdir /project \
     --env HOME=/tmp \
     --device "${DMXBOX_DEVICE}" \
     --group-add keep-groups \
     "$@"
 }
 
-run_idf() {
-  local docker_args=$1
-  shift
+run_ui() {
   run_docker \
-    $docker_args \
-    "espressif/idf:release-${ESPIDF_RELEASE}" \
-    idf.py \
-    "$@"
+    $1 \
+    --workdir /project/dmxui \
+    node:22-alpine \
+    /bin/sh -c "$2"
+}
+
+run_idf() {
+  run_docker \
+    --workdir /project \
+    $1 \
+    espressif/idf:release-${ESPIDF_RELEASE} $2
+}
+
+build_ui() {
+  run_ui '' 'npm install && npm run build:nomap'
+}
+
+build_main() {
+  run_idf '' 'idf.py build'
 }
 
 case "$1" in
-  build) run_idf '' build;;
-  flash) run_idf '' flash --port "${DMXBOX_DEVICE}";;
-  monitor) run_idf '--tty --interactive' monitor --port "${DMXBOX_DEVICE}";;
+  ui)
+    build_ui
+    ;;
+  build) 
+    build_ui
+    build_main
+    ;;
+  flash)
+    run_idf '' "idf.py flash --port ${DMXBOX_DEVICE}"
+    ;;
+  monitor)
+    run_idf '--tty --interactive' "idf.py monitor --port ${DMXBOX_DEVICE}"
+    ;;
+  tty)
+    run_idf '--tty --interactive' 'sh'
+    ;;
 esac
