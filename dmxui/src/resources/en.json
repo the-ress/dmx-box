@@ -1,0 +1,62 @@
+{
+  "WiFi": {
+    "accessPoint.channel": "Channel",
+    "accessPoint.channel.1": "1",
+    "accessPoint.channel.10": "10",
+    "accessPoint.channel.11": "11",
+    "accessPoint.channel.12": "12",
+    "accessPoint.channel.13": "13",
+    "accessPoint.channel.2": "2",
+    "accessPoint.channel.3": "3",
+    "accessPoint.channel.4": "4",
+    "accessPoint.channel.5": "5",
+    "accessPoint.channel.6": "6",
+    "accessPoint.channel.7": "7",
+    "accessPoint.channel.8": "8",
+    "accessPoint.channel.9": "9",
+    "accessPoint.channel.auto": "Auto",
+    "accessPoint.channel.joinedComment": "The existing network selects the channel.",
+    "accessPoint.heading": "Access Point",
+    "accessPoint.name": "Name",
+    "accessPoint.name.placeholder": "Network Name",
+    "accessPoint.security.insecureComment": "This older standard is not secure",
+    "accessPoint.security.noneComment": "$t(security.noneComment)",
+    "accessPoint.security.password": "$t(security.password)",
+    "accessPoint.security.type": "$t(security.type)",
+    "accessPoint.subheading": "This DMX BOX acts as a Wi-Fi access point",
+    "existingNetwork.heading": "Join an Existing Network",
+    "existingNetwork.name": "Name",
+    "existingNetwork.name.placeholder": "Network Name",
+    "existingNetwork.security.noneComment": "$t(security.noneComment)",
+    "existingNetwork.security.insecureComment": "This network is not secure",
+    "existingNetwork.security.password": "$t(security.password)",
+    "existingNetwork.security.type": "$t(security.password)",
+    "existingNetwork.subHeading": "This DMX BOX can also join an existing Wi-Fi network",
+    "h1": "Wi-Fi",
+    "save": "Save",
+    "security.noneComment": "This will allow anyone in range to control your DMX BOX",
+    "security.password": "Password",
+    "security.password.placeholder": "Required",
+    "security.type": "Security",
+    "security.type.none": "None",
+    "security.type.wep": "WEP",
+    "security.type.wpa": "WPA",
+    "security.type.wpa23": "WPA2/WPA3",
+    "security.type.wpa3": "WPA3",
+  },
+  "zod": {
+    "errors": {
+      "too_small": {
+        "string": {
+          "inclusive_with_path_one": "{{path}} must not be empty",
+          "inclusive_with_path_other": "{{path}} must be at least {{minimum}} characters",
+        }
+      },
+      "too_big": {
+        "string": {
+          "inclusive_with_path": "{{path}} must be at most {{maximum}} characters",
+        }
+      },
+    },
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "target": "es2022",
+    "moduleResolution": "bundler"
+  }
+}
