@@ -10,11 +10,7 @@
 #include "webserver.h"
 #include "wifi.h"
 
-static const char *TAG = "webserver";
-
-#ifndef MIN
-#define MIN(x, y) ((x) < (y) ? (x) : (y))
-#endif
+static const char *TAG = "dmxbox_webserver";
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
@@ -45,53 +41,6 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req,
   }
   return httpd_resp_set_type(req, type);
 }
-
-// esp_err_t _http_event_handler(esp_http_client_event_t *evt)
-// {
-//     if (evt->event_id == HTTP_EVENT_ON_DATA)
-//     {
-//         httpd_req_t *req = (httpd_req_t *)evt->user_data;
-//         esp_err_t err = httpd_resp_send_chunk(req, evt->data, evt->data_len);
-//         if (err != ESP_OK)
-//         {
-//             ESP_LOGE(TAG, "File sending failed: %s", esp_err_to_name(err));
-//             /* Abort sending file */
-//             httpd_resp_sendstr_chunk(req, NULL);
-
-//             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed
-//             to send file"); return ESP_FAIL;
-//         }
-//     }
-//     return ESP_OK;
-// }
-
-// static void http_passthrough(httpd_req_t *req)
-// {
-//     char url[FILE_PATH_MAX];
-
-//     strlcpy(url, "http://1.2.3.4:8080", sizeof(url));
-//     strlcat(url, req->uri, sizeof(url));
-//     ESP_LOGI(TAG, "Requesting %s", url);
-
-//     esp_http_client_config_t config = {
-//         .url = url,
-//         .event_handler = _http_event_handler,
-//         .user_data = req,
-//     };
-//     esp_http_client_handle_t client = esp_http_client_init(&config);
-//     esp_err_t err = esp_http_client_perform(client);
-
-//     if (err != ESP_OK)
-//     {
-//         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
-//         return;
-//     }
-//     esp_http_client_cleanup(client);
-
-//     ESP_LOGI(TAG, "Request complete");
-
-//     httpd_resp_send_chunk(req, NULL, 0);
-// }
 
 static esp_err_t common_get_handler(httpd_req_t *req) {
   char filepath[FILE_PATH_MAX];
