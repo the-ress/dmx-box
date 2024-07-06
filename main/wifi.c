@@ -2,10 +2,11 @@
 #include "freertos/FreeRTOS.h"
 #include <string.h>
 
-#include "esp_event.h"
-#include "esp_mac.h"
-#include "esp_wifi.h"
-#include "freertos/event_groups.h"
+#include <esp_event.h>
+#include <esp_mac.h>
+#include <esp_netif.h>
+#include <esp_wifi.h>
+#include <freertos/event_groups.h>
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
@@ -47,6 +48,7 @@ dmxbox_wifi_config_t dmxbox_wifi_config = {
 EventGroupHandle_t dmxbox_wifi_event_group = {};
 
 static int retry_num = 0;
+static char dmxbox_hostname[] = "dmx-box";
 
 esp_netif_t *ap_interface;
 esp_netif_t *sta_interface;
@@ -100,7 +102,7 @@ static void dmxbox_wifi_on_sta_stop() {
   xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
   xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_disconnected);
 
-  if (get_sta_mode_enabled()) {
+  if (dmxbox_get_sta_mode_enabled()) {
     if (retry_num < CONFIG_WIFI_STA_MAXIMUM_RETRY) {
       esp_wifi_connect();
       retry_num++;
@@ -121,8 +123,12 @@ static void dmxbox_wifi_on_sta_got_ip(const ip_event_got_ip_t *event) {
   xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
 }
 
-static void
-dmxbox_wifi_on_wifi_event(int32_t event_id, const void *event_data) {
+static void dmxbox_wifi_on_wifi_event(
+    void *,           // arg (NULL)
+    esp_event_base_t, // WIFI_EVENT
+    int32_t event_id,
+    const void *event_data
+) {
   switch (event_id) {
   case WIFI_EVENT_AP_START:
     dmxbox_wifi_on_ap_start();
@@ -153,7 +159,12 @@ dmxbox_wifi_on_wifi_event(int32_t event_id, const void *event_data) {
   }
 }
 
-static void dmxbox_wifi_on_ip_event(int32_t event_id, void *event_data) {
+static void dmxbox_wifi_on_ip_event(
+    void *,           // arg (NULL)
+    esp_event_base_t, // IP_EVENT
+    long int event_id,
+    void *event_data
+) {
   switch (event_id) {
   case IP_EVENT_STA_GOT_IP:
     dmxbox_wifi_on_sta_got_ip(event_data);
@@ -164,20 +175,7 @@ static void dmxbox_wifi_on_ip_event(int32_t event_id, void *event_data) {
   }
 }
 
-static void wifi_event_handler(
-    void *arg,
-    esp_event_base_t event_base,
-    int32_t event_id,
-    void *event_data
-) {
-  if (event_base == WIFI_EVENT) {
-    dmxbox_wifi_on_wifi_event(event_id, event_data);
-  } else if (event_base == IP_EVENT) {
-    dmxbox_wifi_on_ip_event(event_id, event_data);
-  }
-}
-
-void wifi_init(void) {
+static void dmxbox_wifi_init(void) {
   dmxbox_wifi_event_group = xEventGroupCreate();
 
   ESP_ERROR_CHECK(esp_netif_init());
@@ -186,22 +184,26 @@ void wifi_init(void) {
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
+  ap_interface = esp_netif_create_default_wifi_ap();
+  sta_interface = esp_netif_create_default_wifi_sta();
+
+  ESP_ERROR_CHECK(esp_netif_set_hostname(ap_interface, dmxbox_hostname));
+  ESP_ERROR_CHECK(esp_netif_set_hostname(sta_interface, dmxbox_hostname));
+
   ESP_ERROR_CHECK(esp_event_handler_register(
       WIFI_EVENT,
       ESP_EVENT_ANY_ID,
-      &wifi_event_handler,
+      &dmxbox_wifi_on_wifi_event,
       NULL
   ));
 
   ESP_ERROR_CHECK(esp_event_handler_register(
       IP_EVENT,
       IP_EVENT_STA_GOT_IP,
-      &wifi_event_handler,
+      &dmxbox_wifi_on_ip_event,
       NULL
   ));
 
-  ap_interface = esp_netif_create_default_wifi_ap();
-  sta_interface = esp_netif_create_default_wifi_sta();
 
   // disable wifi power save to improve performance
   esp_wifi_set_ps(WIFI_PS_NONE);
@@ -237,17 +239,17 @@ void refresh_cached_wifi_config(
   dmxbox_wifi_config.sta.auth_mode = wifi_sta_config->sta.threshold.authmode;
 }
 
-void wifi_start() {
-  wifi_init();
+void dmxbox_wifi_start() {
+  dmxbox_wifi_init();
 
-  uint8_t sta_mode_enabled = get_sta_mode_enabled();
+  uint8_t sta_mode_enabled = dmxbox_get_sta_mode_enabled();
 
   ESP_ERROR_CHECK(
       esp_wifi_set_mode(sta_mode_enabled ? WIFI_MODE_APSTA : WIFI_MODE_AP)
   );
   ESP_ERROR_CHECK(esp_wifi_start());
 
-  ESP_LOGI(TAG, "wifi_start finished");
+  ESP_LOGI(TAG, "esp_wifi_start finished");
 
   wifi_config_t wifi_ap_config;
   ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_AP, &wifi_ap_config));
@@ -331,7 +333,7 @@ void wifi_set_defaults(void) {
 
   ESP_ERROR_CHECK(esp_wifi_set_mode(original_wifi_mode));
 
-  set_sta_mode_enabled(0);
+  dmxbox_set_sta_mode_enabled(0);
 
   refresh_cached_wifi_config(&wifi_ap_config, &wifi_sta_config);
 }
@@ -406,7 +408,7 @@ void wifi_update_config(
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_sta_config)
   ); // TODO handle errors
 
-  set_sta_mode_enabled(sta_mode_enabled);
+  dmxbox_set_sta_mode_enabled(sta_mode_enabled);
 
   ESP_ERROR_CHECK(
       esp_wifi_set_mode(sta_mode_enabled ? WIFI_MODE_APSTA : WIFI_MODE_AP)

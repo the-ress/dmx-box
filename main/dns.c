@@ -124,7 +124,6 @@ static int parse_dns_request(
   char *cur_qd_ptr = dns_reply + sizeof(dns_header_t);
   char name[128];
 
-  // Respond to all questions with the ESP32's IP address
   for (int i = 0; i < qd_count; i++) {
     char *name_end_ptr = parse_dns_name(cur_qd_ptr, name, sizeof(name));
     if (name_end_ptr == NULL) {

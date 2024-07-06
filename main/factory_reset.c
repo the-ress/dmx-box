@@ -31,7 +31,7 @@ bool blink_and_wait(int blink_interval, int wait_time) {
 }
 
 void perform_factory_reset(void) {
-  storage_factory_reset();
+  dmxbox_storage_factory_reset();
   ESP_LOGI(TAG, "performing factory reset");
   esp_restart();
 }

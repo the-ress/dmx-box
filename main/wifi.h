@@ -30,7 +30,7 @@ typedef struct dmxbox_wifi_config {
 extern dmxbox_wifi_config_t dmxbox_wifi_config;
 extern EventGroupHandle_t dmxbox_wifi_event_group;
 
-void wifi_start();
+void dmxbox_wifi_start();
 void wifi_set_defaults(void);
 void wifi_update_config(
     const dmxbox_wifi_config_t *new_config,

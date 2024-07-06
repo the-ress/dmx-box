@@ -66,12 +66,12 @@ void app_main(void) {
 
   ESP_ERROR_CHECK(led_set_state(POWER_LED_GPIO, 1));
 
-  storage_init();
-  wifi_start();
+  dmxbox_storage_init();
+  dmxbox_wifi_start();
 
-  if (!get_first_initialization_complete()) {
+  if (!dmxbox_get_first_run_completed()) {
     wifi_set_defaults();
-    set_first_initialization_complete(1);
+    dmxbox_set_first_run_completed(1);
   }
 
   artnet_initialize();

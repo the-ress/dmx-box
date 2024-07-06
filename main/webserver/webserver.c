@@ -141,7 +141,7 @@ static wifi_auth_mode_t string_to_auth_mode(char *str) {
 static esp_err_t api_wifi_config_get_handler(httpd_req_t *req) {
   httpd_resp_set_type(req, "application/json");
 
-  bool sta_mode_enabled = get_sta_mode_enabled();
+  bool sta_mode_enabled = dmxbox_get_sta_mode_enabled();
 
   cJSON *ap, *sta;
   cJSON *root = cJSON_CreateObject();

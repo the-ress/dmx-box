@@ -1,61 +1,58 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include <stdint.h>
 
 static const char *TAG = "storage";
 
-#define CONFIG_NVS_NAMESPACE "storage"
+static const char *dmxbox_nvs_ns = "dmxbox";
 
-static uint8_t first_initialization_complete = 0;
-static uint8_t sta_mode_enabled = 0;
+static uint8_t first_run_completed_ = 0;
+static uint8_t sta_mode_enabled_ = 0;
 
-uint8_t get_first_initialization_complete(void) {
-  return first_initialization_complete;
+static const char *key_first_run_completed = "first_init";
+static const char *key_sta_mode_enabled = "sta_mode";
+
+static nvs_handle_t dmxbox_storage_open(nvs_open_mode_t open_mode) {
+  nvs_handle_t storage;
+  ESP_ERROR_CHECK(nvs_open(dmxbox_nvs_ns, open_mode, &storage));
+  return storage;
 }
 
-void set_first_initialization_complete(uint8_t value) {
-  ESP_LOGI(TAG, "Setting 'first_init' to %d", value);
-
-  nvs_handle_t storage_handle;
-  ESP_ERROR_CHECK(nvs_open(CONFIG_NVS_NAMESPACE, NVS_READWRITE, &storage_handle)
-  );
-
-  first_initialization_complete = value;
-  ESP_ERROR_CHECK(nvs_set_u8(storage_handle, "first_init", value));
-
-  ESP_ERROR_CHECK(nvs_commit(storage_handle));
-  nvs_close(storage_handle);
+static void dmxbox_storage_set(const char *key, uint8_t value) {
+  ESP_LOGI(TAG, "Setting '%s' to %d", key, value);
+  nvs_handle_t storage = dmxbox_storage_open(NVS_READWRITE);
+  ESP_ERROR_CHECK(nvs_set_u8(storage, key, value));
+  ESP_ERROR_CHECK(nvs_commit(storage));
+  nvs_close(storage);
 }
 
-uint8_t get_sta_mode_enabled(void) { return sta_mode_enabled; }
-
-void set_sta_mode_enabled(uint8_t value) {
-  ESP_LOGI(TAG, "Setting 'sta_mode' to %d", value);
-
-  nvs_handle_t storage_handle;
-  ESP_ERROR_CHECK(nvs_open(CONFIG_NVS_NAMESPACE, NVS_READWRITE, &storage_handle)
-  );
-
-  sta_mode_enabled = value;
-  ESP_ERROR_CHECK(nvs_set_u8(storage_handle, "sta_mode", value));
-
-  ESP_ERROR_CHECK(nvs_commit(storage_handle));
-  nvs_close(storage_handle);
-}
-
-void handle_read_err(esp_err_t err, const char *key) {
+static uint8_t dmxbox_storage_get(nvs_handle_t storage, const char *key) {
+  uint8_t result;
+  esp_err_t err = nvs_get_u8(storage, key, &result);
   switch (err) {
   case ESP_OK:
-    break;
+    return result;
   case ESP_ERR_NVS_NOT_FOUND:
-    ESP_LOGI(TAG, "'%s' is not set yet", key);
-    break;
+    ESP_LOGI(TAG, "'%s' found", key);
+    return 0;
   default:
     ESP_LOGI(TAG, "Error reading '%s': %s", key, esp_err_to_name(err));
-    break;
+    return 0;
   }
 }
 
-void storage_init(void) {
+uint8_t dmxbox_get_first_run_completed(void) { return first_run_completed_; }
+uint8_t dmxbox_get_sta_mode_enabled(void) { return sta_mode_enabled_; }
+
+void dmxbox_set_first_run_completed(uint8_t value) {
+  dmxbox_storage_set(key_first_run_completed, value);
+}
+
+void dmxbox_set_sta_mode_enabled(uint8_t value) {
+  dmxbox_storage_set(key_sta_mode_enabled, value);
+}
+
+void dmxbox_storage_init(void) {
   ESP_LOGI(TAG, "Initializing storage");
 
   esp_err_t err = nvs_flash_init();
@@ -71,18 +68,10 @@ void storage_init(void) {
   }
   ESP_ERROR_CHECK(err);
 
-  nvs_handle_t storage_handle;
-  ESP_ERROR_CHECK(nvs_open(CONFIG_NVS_NAMESPACE, NVS_READWRITE, &storage_handle)
-  );
-
-  err =
-      nvs_get_u8(storage_handle, "first_init", &first_initialization_complete);
-  handle_read_err(err, "first_init");
-
-  err = nvs_get_u8(storage_handle, "sta_mode", &sta_mode_enabled);
-  handle_read_err(err, "sta_mode");
-
-  nvs_close(storage_handle);
+  nvs_handle_t storage = dmxbox_storage_open(NVS_READONLY);
+  first_run_completed_ = dmxbox_storage_get(storage, key_first_run_completed);
+  sta_mode_enabled_ = dmxbox_storage_get(storage, key_sta_mode_enabled);
+  nvs_close(storage);
 }
 
 void storage_factory_reset(void) {

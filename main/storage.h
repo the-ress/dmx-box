@@ -1,8 +1,11 @@
-void storage_init(void);
-void storage_factory_reset(void);
+#pragma once
+#include <stdint.h>
 
-uint8_t get_first_initialization_complete(void);
-void set_first_initialization_complete(uint8_t value);
+void dmxbox_storage_init(void);
+void dmxbox_storage_factory_reset(void);
 
-uint8_t get_sta_mode_enabled(void);
-void set_sta_mode_enabled(uint8_t value);
+uint8_t dmxbox_get_first_run_completed(void);
+uint8_t dmxbox_get_sta_mode_enabled(void);
+
+void dmxbox_set_first_run_completed(uint8_t value);
+void dmxbox_set_sta_mode_enabled(uint8_t value);
