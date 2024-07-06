@@ -1,41 +1,39 @@
-#include "freertos/event_groups.h"
-#include "esp_wifi.h"
+#include <esp_wifi.h>
+#include <freertos/event_groups.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-/* The event group allows multiple bits for each event, but we only care about two events:
- * - we are connected to the AP with an IP
- * - we failed to connect after the maximum amount of retries */
-#define WIFI_STA_CONNECTED_BIT BIT0
-#define WIFI_STA_DISCONNECTED_BIT BIT1
-#define WIFI_STA_FAIL_BIT BIT2
-#define WIFI_AP_STARTED_BIT BIT3
-#define WIFI_AP_STOPPED_BIT BIT4
-#define WIFI_SHOULD_ADVERTISE_ARTNET_AP BIT5
-#define WIFI_SHOULD_ADVERTISE_ARTNET_STA BIT6
+enum dmxbox_wifi_events {
+  dmxbox_wifi_sta_connected = 0x0001,
+  dmxbox_wifi_sta_disconnected = 0x0002,
+  dmxbox_wifi_sta_fail = 0x0004,
+  dmxbox_wifi_ap_started = 0x0010,
+  dmxbox_wifi_ap_stopped = 0x0020,
+  dmxbox_wifi_ap_sta_connected = 0x0040,
+};
 
-extern struct wifi_config
-{
-    struct
-    {
-        char ssid[32];
-        char password[64];
-        wifi_auth_mode_t auth_mode;
-        uint8_t channel;
-    } ap;
+typedef struct dmxbox_wifi_config {
+  struct {
+    char ssid[32];
+    char password[64];
+    wifi_auth_mode_t auth_mode;
+    uint8_t channel;
+  } ap;
 
-    struct
-    {
-        char ssid[32];
-        char password[64];
-        wifi_auth_mode_t auth_mode;
-    } sta;
-} current_wifi_config;
+  struct {
+    char ssid[32];
+    char password[64];
+    wifi_auth_mode_t auth_mode;
+  } sta;
+} dmxbox_wifi_config_t;
 
-/* FreeRTOS event group to signal when we are connected*/
-extern EventGroupHandle_t wifi_event_group;
+extern dmxbox_wifi_config_t dmxbox_wifi_config;
+extern EventGroupHandle_t dmxbox_wifi_event_group;
 
 void wifi_start();
 void wifi_set_defaults(void);
-void wifi_update_config(const struct wifi_config *new_config, bool sta_mode_enabled);
+void wifi_update_config(const dmxbox_wifi_config_t *new_config,
+                        bool sta_mode_enabled);
 
 esp_netif_t *wifi_get_ap_interface(void);
 esp_netif_t *wifi_get_sta_interface(void);

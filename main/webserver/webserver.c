@@ -248,16 +248,16 @@ static esp_err_t api_wifi_config_get_handler(httpd_req_t *req)
     cJSON_AddItemToObject(root, "ap", ap = cJSON_CreateObject());
     cJSON_AddItemToObject(root, "sta", sta = cJSON_CreateObject());
 
-    cJSON_AddStringToObject(ap, "ssid", current_wifi_config.ap.ssid);
-    cJSON_AddStringToObject(ap, "password", current_wifi_config.ap.password);
-    cJSON_AddStringToObject(ap, "auth_mode", auth_mode_to_string(current_wifi_config.ap.auth_mode));
-    cJSON_AddNumberToObject(ap, "channel", current_wifi_config.ap.channel);
+    cJSON_AddStringToObject(ap, "ssid", dmxbox_wifi_config.ap.ssid);
+    cJSON_AddStringToObject(ap, "password", dmxbox_wifi_config.ap.password);
+    cJSON_AddStringToObject(ap, "auth_mode", auth_mode_to_string(dmxbox_wifi_config.ap.auth_mode));
+    cJSON_AddNumberToObject(ap, "channel", dmxbox_wifi_config.ap.channel);
 
     cJSON_AddBoolToObject(sta, "enabled", sta_mode_enabled);
 
-    cJSON_AddStringToObject(sta, "ssid", current_wifi_config.sta.ssid);
-    cJSON_AddStringToObject(sta, "password", current_wifi_config.sta.password);
-    cJSON_AddStringToObject(sta, "auth_mode", auth_mode_to_string(current_wifi_config.sta.auth_mode));
+    cJSON_AddStringToObject(sta, "ssid", dmxbox_wifi_config.sta.ssid);
+    cJSON_AddStringToObject(sta, "password", dmxbox_wifi_config.sta.password);
+    cJSON_AddStringToObject(sta, "auth_mode", auth_mode_to_string(dmxbox_wifi_config.sta.auth_mode));
 
     const char *result = cJSON_Print(root);
     httpd_resp_sendstr(req, result);
@@ -309,7 +309,7 @@ static esp_err_t api_wifi_config_put_handler(httpd_req_t *req)
     ESP_LOGI(TAG, "Got ap values: ssid = %s, pw = %s, auth_mode = %s (%d), channel = %d", ap_ssid, ap_password, ap_auth_mode_string, ap_auth_mode, ap_channel);
     ESP_LOGI(TAG, "Got sta values: enabled = %d, ssid = %s, pw = %s, auth_mode = %s (%d)", sta_mode_enabled, sta_ssid, sta_password, sta_auth_mode_string, sta_auth_mode);
 
-    struct wifi_config new_config;
+    dmxbox_wifi_config_t new_config;
     strlcpy(new_config.ap.ssid, ap_ssid, sizeof(new_config.ap.ssid));
     strlcpy(new_config.ap.password, ap_password, sizeof(new_config.ap.password));
     new_config.ap.auth_mode = ap_auth_mode;
