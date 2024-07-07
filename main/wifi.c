@@ -126,7 +126,7 @@ static void dmxbox_wifi_on_wifi_event(
     void *,           // arg (NULL)
     esp_event_base_t, // WIFI_EVENT
     int32_t event_id,
-    const void *event_data
+    void *event_data
 ) {
   switch (event_id) {
   case WIFI_EVENT_AP_START:
@@ -161,7 +161,7 @@ static void dmxbox_wifi_on_wifi_event(
 static void dmxbox_wifi_on_ip_event(
     void *,           // arg (NULL)
     esp_event_base_t, // IP_EVENT
-    long int event_id,
+    int32_t event_id,
     void *event_data
 ) {
   switch (event_id) {

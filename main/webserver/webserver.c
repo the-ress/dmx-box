@@ -1,9 +1,10 @@
-#include "cJSON.h"
-#include "esp_http_client.h"
-#include "esp_http_server.h"
-#include "esp_log.h"
-#include "esp_vfs.h"
-#include "esp_wifi.h"
+#include <cJSON.h>
+#include <esp_check.h>
+#include <esp_http_client.h>
+#include <esp_http_server.h>
+#include <esp_log.h>
+#include <esp_vfs.h>
+#include <esp_wifi.h>
 #include <string.h>
 
 #include "storage.h"
@@ -19,6 +20,13 @@ static const char *TAG = "dmxbox_webserver";
   (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
 static char scratch[SCRATCH_BUFSIZE];
+
+#define CONFIG_CORS_ORIGIN "http://localhost:8000"
+#ifdef CONFIG_CORS_ORIGIN
+static const char *dmxbox_api_cors_origin = CONFIG_CORS_ORIGIN;
+#else
+static const char *dmxbox_api_cors_origin = NULL;
+#endif
 
 /* Set HTTP response content type according to file extension */
 static esp_err_t
@@ -42,6 +50,30 @@ set_content_type_from_file(httpd_req_t *req, const char *filepath) {
   return httpd_resp_set_type(req, type);
 }
 
+static esp_err_t dmxbox_api_set_cors_header(httpd_req_t *req) {
+  if (dmxbox_api_cors_origin) {
+    ESP_RETURN_ON_ERROR(
+        httpd_resp_set_hdr(
+            req,
+            "Access-Control-Allow-Origin",
+            dmxbox_api_cors_origin
+        ),
+        __func__,
+        "failed to set allow origin header"
+    );
+    ESP_RETURN_ON_ERROR(
+        httpd_resp_set_hdr(
+            req,
+            "Access-Control-Allow-Methods",
+            "GET,PUT"
+        ),
+        __func__,
+        "failed to set allow methods header"
+    );
+  }
+  return ESP_OK;
+}
+
 static esp_err_t common_get_handler(httpd_req_t *req) {
   char filepath[FILE_PATH_MAX];
 
@@ -59,8 +91,6 @@ static esp_err_t common_get_handler(httpd_req_t *req) {
   }
 
   set_content_type_from_file(req, filepath);
-
-  // http_passthrough(req);
 
   char *chunk = scratch;
   ssize_t read_bytes;
@@ -140,6 +170,7 @@ static wifi_auth_mode_t string_to_auth_mode(char *str) {
 
 static esp_err_t api_wifi_config_get_handler(httpd_req_t *req) {
   httpd_resp_set_type(req, "application/json");
+  dmxbox_api_set_cors_header(req);
 
   bool sta_mode_enabled = dmxbox_get_sta_mode_enabled();
 
@@ -180,24 +211,18 @@ static esp_err_t api_wifi_config_put_handler(httpd_req_t *req) {
   int cur_len = 0;
   int received = 0;
   if (total_len >= SCRATCH_BUFSIZE) {
-    /* Respond with 500 Internal Server Error */
-    httpd_resp_send_err(
-        req,
-        HTTPD_500_INTERNAL_SERVER_ERROR,
-        "Content too long"
-    );
-    return ESP_FAIL;
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Content too long");
+    return ESP_OK;
   }
   while (cur_len < total_len) {
     received = httpd_req_recv(req, scratch + cur_len, total_len);
     if (received <= 0) {
-      /* Respond with 500 Internal Server Error */
       httpd_resp_send_err(
           req,
-          HTTPD_500_INTERNAL_SERVER_ERROR,
-          "Failed to save config"
+          HTTPD_408_REQ_TIMEOUT,
+          "Failed to receive request"
       );
-      return ESP_FAIL;
+      return ESP_OK;
     }
     cur_len += received;
   }
@@ -206,6 +231,8 @@ static esp_err_t api_wifi_config_put_handler(httpd_req_t *req) {
   cJSON *root = cJSON_Parse(scratch);
   cJSON *ap = cJSON_GetObjectItem(root, "ap");
   cJSON *sta = cJSON_GetObjectItem(root, "sta");
+
+  const char *hostname = cJSON_GetObjectItem(root, "hostname")->valuestring;
 
   char *ap_ssid = cJSON_GetObjectItem(ap, "ssid")->valuestring;
   char *ap_password = cJSON_GetObjectItem(ap, "password")->valuestring;
@@ -220,6 +247,7 @@ static esp_err_t api_wifi_config_put_handler(httpd_req_t *req) {
       cJSON_GetObjectItem(sta, "auth_mode")->valuestring;
   wifi_auth_mode_t sta_auth_mode = string_to_auth_mode(sta_auth_mode_string);
 
+  ESP_LOGI(TAG, "Got ap hostname: '%s'", hostname);
   ESP_LOGI(
       TAG,
       "Got ap values: ssid = %s, pw = %s, auth_mode = %s (%d), channel = %d",
@@ -239,6 +267,11 @@ static esp_err_t api_wifi_config_put_handler(httpd_req_t *req) {
       sta_auth_mode
   );
 
+  if (!dmxbox_set_hostname(hostname)) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Hostname too long");
+    goto exit;
+  }
+
   dmxbox_wifi_config_t new_config;
   strlcpy(new_config.ap.ssid, ap_ssid, sizeof(new_config.ap.ssid));
   strlcpy(new_config.ap.password, ap_password, sizeof(new_config.ap.password));
@@ -255,8 +288,21 @@ static esp_err_t api_wifi_config_put_handler(httpd_req_t *req) {
 
   wifi_update_config(&new_config, sta_mode_enabled);
 
-  cJSON_Delete(root);
   httpd_resp_sendstr(req, "Config was stored successfully");
+
+exit:
+  cJSON_Delete(root);
+  return ESP_OK;
+}
+
+static esp_err_t dmxbox_api_options_handler(httpd_req_t *req) {
+  ESP_LOGD(TAG, "OPTIONS request for %s", req->uri);
+  ESP_RETURN_ON_ERROR(
+      dmxbox_api_set_cors_header(req),
+      __func__,
+      "set_cors_header fail"
+  );
+  ESP_RETURN_ON_ERROR(httpd_resp_send(req, "", 0), __func__, "resp_send fail");
   return ESP_OK;
 }
 
@@ -266,6 +312,11 @@ static const httpd_uri_t api_wifi_config_get = {
     .handler = api_wifi_config_get_handler,
 };
 
+static const httpd_uri_t api_wifi_config_options = {
+    .uri = "/api/wifi-config",
+    .method = HTTP_OPTIONS,
+    .handler = dmxbox_api_options_handler,
+};
 static const httpd_uri_t api_wifi_config_put = {
     .uri = "/api/wifi-config",
     .method = HTTP_PUT,
@@ -298,5 +349,6 @@ void start_webserver(void) {
   ESP_LOGI(TAG, "Registering URI handlers");
   httpd_register_uri_handler(server, &api_wifi_config_get);
   httpd_register_uri_handler(server, &api_wifi_config_put);
+  httpd_register_uri_handler(server, &api_wifi_config_options);
   httpd_register_uri_handler(server, &common_get_uri);
 }

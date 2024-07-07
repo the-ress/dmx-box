@@ -11,6 +11,7 @@ type ApiAuthMode =
   | 'WPA3_PSK'
 
 interface ApiModel {
+  hostname: string
   ap: {
     ssid: string
     password: string
@@ -56,6 +57,7 @@ function apiAuthModeFromForm(type: WiFiSecurityType): ApiAuthMode {
 
 function apiModelToFields(model: ApiModel): WiFiFields {
   return {
+    hostName: model.hostname,
     accessPoint: {
       name: model.ap.ssid,
       security: {
@@ -77,6 +79,7 @@ function apiModelToFields(model: ApiModel): WiFiFields {
 
 function apiModelFromFields(fields: WiFiFields): ApiModel {
   return {
+    hostname: fields.hostName,
     ap: {
       ssid: fields.accessPoint.name,
       auth_mode: apiAuthModeFromForm(fields.accessPoint.security.type),

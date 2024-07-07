@@ -1,4 +1,4 @@
-import { MaxNetworkNameLength, WiFiChannel, WiFiFields, WiFiSchema } from "./schema"
+import { MaxHostNameLength, MaxNetworkNameLength, WiFiChannel, WiFiFields, WiFiSchema } from "./schema"
 import WiFiSecurity from "./WiFiSecurity"
 import FormHeader from "../../components/FormHeader"
 import FormRowInput from "../../components/FormRowInput"
@@ -12,25 +12,25 @@ export interface WiFiFormProps {
   onSubmit: (fields: WiFiFields) => void
 }
 
-export default function WiFiForm({ onLoad, onSubmit}: WiFiFormProps) {
+export default function WiFiForm({ onLoad, onSubmit }: WiFiFormProps) {
   const { t } = useTranslation('WiFi');
   const FieldNameJoinExistingEnabled = 'existingNetwork.enabled'
 
   const WiFiChannelOptions = [
     { value: WiFiChannel.auto, label: t('WiFi:accessPoint.channel.auto') },
-    { value: WiFiChannel[1],   label: t('WiFi:accessPoint.channel.1') },
-    { value: WiFiChannel[2],   label: t('WiFi:accessPoint.channel.2') },
-    { value: WiFiChannel[3],   label: t('WiFi:accessPoint.channel.3') },
-    { value: WiFiChannel[4],   label: t('WiFi:accessPoint.channel.4') },
-    { value: WiFiChannel[5],   label: t('WiFi:accessPoint.channel.5') },
-    { value: WiFiChannel[6],   label: t('WiFi:accessPoint.channel.6') },
-    { value: WiFiChannel[7],   label: t('WiFi:accessPoint.channel.7') },
-    { value: WiFiChannel[8],   label: t('WiFi:accessPoint.channel.8') },
-    { value: WiFiChannel[9],   label: t('WiFi:accessPoint.channel.9') },
-    { value: WiFiChannel[10],  label: t('WiFi:accessPoint.channel.10') },
-    { value: WiFiChannel[11],  label: t('WiFi:accessPoint.channel.11') },
-    { value: WiFiChannel[12],  label: t('WiFi:accessPoint.channel.12') },
-    { value: WiFiChannel[13],  label: t('WiFi:accessPoint.channel.13') },
+    { value: WiFiChannel[1], label: t('WiFi:accessPoint.channel.1') },
+    { value: WiFiChannel[2], label: t('WiFi:accessPoint.channel.2') },
+    { value: WiFiChannel[3], label: t('WiFi:accessPoint.channel.3') },
+    { value: WiFiChannel[4], label: t('WiFi:accessPoint.channel.4') },
+    { value: WiFiChannel[5], label: t('WiFi:accessPoint.channel.5') },
+    { value: WiFiChannel[6], label: t('WiFi:accessPoint.channel.6') },
+    { value: WiFiChannel[7], label: t('WiFi:accessPoint.channel.7') },
+    { value: WiFiChannel[8], label: t('WiFi:accessPoint.channel.8') },
+    { value: WiFiChannel[9], label: t('WiFi:accessPoint.channel.9') },
+    { value: WiFiChannel[10], label: t('WiFi:accessPoint.channel.10') },
+    { value: WiFiChannel[11], label: t('WiFi:accessPoint.channel.11') },
+    { value: WiFiChannel[12], label: t('WiFi:accessPoint.channel.12') },
+    { value: WiFiChannel[13], label: t('WiFi:accessPoint.channel.13') },
   ]
 
   const form = useForm<WiFiFields>({
@@ -47,10 +47,20 @@ export default function WiFiForm({ onLoad, onSubmit}: WiFiFormProps) {
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <div className="flex flex-row">
-          <h1 className="grow mb-4 text-3xl select-none">Wi-Fi</h1>
+          <h1 className="grow mb-4 text-3xl select-none">{t('WiFi:h1')}</h1>
           <div className="grow-0">
             <button type="submit">{t('WiFi:save')}</button>
           </div>
+        </div>
+
+        <div className="mb-6">
+          <FormRowInput
+            label={t('WiFi:hostName')}
+            maxLength={MaxHostNameLength}
+            name="hostName"
+            placeholder={t('WiFi:hostName.placeholder')}
+            type="text"
+          />
         </div>
 
         <FormHeader

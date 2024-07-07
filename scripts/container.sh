@@ -33,7 +33,7 @@ run_idf() {
 }
 
 build_ui() {
-  run_ui '' 'npm install && npm run build:nomap'
+  run_ui '' 'npm install && npm run clean && npm run build:nomap'
 }
 
 build_main() {
@@ -49,6 +49,8 @@ case "$1" in
     build_main
     ;;
   flash)
+    build_ui
+    build_main
     run_idf '--tty --interactive' \
       "idf.py flash --port ${DMXBOX_DEVICE} && idf.py monitor --port ${DMXBOX_DEVICE}"
     ;;

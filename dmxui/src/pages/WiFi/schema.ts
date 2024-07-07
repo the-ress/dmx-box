@@ -6,6 +6,7 @@ export type WiFiSecurityType = z.infer<typeof WiFiSecurityTypeSchema>
 
 const MinNetworkNameLength = 1
 const MinPasswordLength = 8
+export const MaxHostNameLength = 15
 export const MaxPasswordLength = 63
 export const MaxNetworkNameLength = 32
 
@@ -28,6 +29,10 @@ const WiFiSecurityInactiveSchema = z.object({
 const WiFiChannelSchema = z.enum([
   'auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13',
 ])
+
+const HostNameSchema = z.string()
+  .min(1)
+  .max(MaxHostNameLength);
 
 const NetworkNameSchema = z.string()
   .min(MinNetworkNameLength)
@@ -57,6 +62,7 @@ const ExistingNetworkSchema = z.discriminatedUnion('enabled', [
 ])
 
 export const WiFiSchema = z.object({
+  hostName: HostNameSchema,
   accessPoint: AccessPointSchema,
   existingNetwork: ExistingNetworkSchema,
 })
