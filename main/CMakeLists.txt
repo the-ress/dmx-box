@@ -12,8 +12,9 @@ idf_component_register(
         "storage.c"
         "webserver/webserver.c"
         "webserver/static_files.c"
-        "webserver/wifi_scan.c"
+        "webserver/api_wifi_scan.c"
         "wifi.c"
+        "wifi_scan.c"
     INCLUDE_DIRS "."
 )
 

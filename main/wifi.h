@@ -38,12 +38,5 @@ void wifi_update_config(
     bool sta_mode_enabled
 );
 
-typedef void (*dmxbox_wifi_scan_callback_t)(
-    uint16_t count,
-    const wifi_ap_record_t *records
-);
-
-esp_err_t dmxbox_wifi_start_scan(dmxbox_wifi_scan_callback_t);
-
 esp_netif_t *wifi_get_ap_interface(void);
 esp_netif_t *wifi_get_sta_interface(void);
