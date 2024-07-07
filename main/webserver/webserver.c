@@ -10,6 +10,7 @@
 #include "storage.h"
 #include "webserver.h"
 #include "wifi.h"
+#include "wifi_scan.h"
 
 static const char *TAG = "dmxbox_webserver";
 
@@ -258,6 +259,13 @@ esp_err_t dmxbox_start_webserver(void) {
       .handler = api_wifi_config_put_handler,
   };
 
+  static const httpd_uri_t handler_wifi_scan = {
+      .uri = "/api/wifi-scan",
+      .method = HTTP_GET,
+      .handler = dmxbox_httpd_wifi_scan_handler,
+      .is_websocket = true,
+  };
+
   static const httpd_uri_t handler_wildcard = {
       .uri = "/*",
       .method = HTTP_GET,
@@ -282,6 +290,12 @@ esp_err_t dmxbox_start_webserver(void) {
       httpd_register_uri_handler(server, &handler_config_options),
       __func__,
       "handler_config_options failed"
+  );
+
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &handler_wifi_scan),
+      __func__,
+      "handler_wifi_scan failed"
   );
 
   ESP_RETURN_ON_ERROR(

@@ -57,6 +57,9 @@ case "$1" in
   monitor)
     run_idf '--tty --interactive' "idf.py monitor --port ${DMXBOX_DEVICE}"
     ;;
+  menuconfig)
+    run_idf '--tty --interactive' "idf.py menuconfig"
+    ;;
   tty)
     run_idf '--tty --interactive' 'sh'
     ;;

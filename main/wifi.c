@@ -1,12 +1,12 @@
-#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
-#include <string.h>
-
+#include <esp_check.h>
 #include <esp_event.h>
+#include <esp_log.h>
 #include <esp_mac.h>
 #include <esp_netif.h>
 #include <esp_wifi.h>
 #include <freertos/event_groups.h>
+#include <string.h>
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
@@ -31,6 +31,10 @@ static const char *TAG = "dmxbox_wifi";
 #define CONFIG_WIFI_STA_AUTH_MODE WIFI_AUTH_WPA2_PSK
 #define CONFIG_WIFI_STA_MAXIMUM_RETRY 5
 
+#ifndef CONFIG_DMXBOX_WIFI_MAX_AP_RECORDS
+#define CONFIG_DMXBOX_WIFI_MAX_AP_RECORDS 32
+#endif
+
 dmxbox_wifi_config_t dmxbox_wifi_config = {
     .ap =
         {.ssid = "DmxBox_",
@@ -50,8 +54,12 @@ EventGroupHandle_t dmxbox_wifi_event_group = {};
 static int retry_num = 0;
 static bool is_in_disconnect = false;
 
-esp_netif_t *ap_interface;
-esp_netif_t *sta_interface;
+static esp_netif_t *ap_interface;
+static esp_netif_t *sta_interface;
+
+static wifi_ap_record_t scan_records[CONFIG_DMXBOX_WIFI_MAX_AP_RECORDS];
+static uint16_t scan_record_count = 0;
+static dmxbox_wifi_scan_callback_t scan_callback = NULL;
 
 static esp_err_t dmxbox_wifi_disconnect(void) {
   is_in_disconnect = true;
@@ -139,6 +147,31 @@ static void dmxbox_wifi_on_sta_got_ip(const ip_event_got_ip_t *event) {
   xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
 }
 
+static void dmxbox_wifi_on_scan_done(void) {
+  esp_err_t ret = ESP_OK;
+
+  ESP_GOTO_ON_ERROR(
+      esp_wifi_scan_get_ap_num(&scan_record_count),
+      exit,
+      TAG,
+      "scan_get_ap_num failed"
+  );
+
+  ESP_GOTO_ON_ERROR(
+      esp_wifi_scan_get_ap_records(&scan_record_count, scan_records),
+      exit,
+      TAG,
+      "scan_get_ap_records failed"
+  );
+
+  if (scan_callback) {
+    scan_callback(scan_record_count, scan_records);
+    scan_callback = NULL;
+  }
+exit:
+  (void)ret;
+}
+
 static void dmxbox_wifi_on_wifi_event(
     void *,           // arg (NULL)
     esp_event_base_t, // WIFI_EVENT
@@ -168,6 +201,10 @@ static void dmxbox_wifi_on_wifi_event(
 
   case WIFI_EVENT_STA_DISCONNECTED:
     dmxbox_wifi_on_sta_disconnected();
+    break;
+
+  case WIFI_EVENT_SCAN_DONE:
+    dmxbox_wifi_on_scan_done();
     break;
 
   default:
@@ -444,3 +481,14 @@ void wifi_update_config(
 esp_netif_t *wifi_get_ap_interface(void) { return ap_interface; }
 
 esp_netif_t *wifi_get_sta_interface(void) { return sta_interface; }
+
+esp_err_t dmxbox_wifi_start_scan(dmxbox_wifi_scan_callback_t callback) {
+  ESP_RETURN_ON_ERROR(esp_wifi_scan_stop(), TAG, "failed to stop scan");
+  scan_callback = callback;
+  ESP_RETURN_ON_ERROR(
+      esp_wifi_scan_start(NULL, false),
+      TAG,
+      "failed to start scan"
+  );
+  return ESP_OK;
+}
