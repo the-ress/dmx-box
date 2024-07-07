@@ -7,9 +7,9 @@
 
 static const char *TAG = "dmx_receive";
 
-portMUX_TYPE dmx_in_spinlock = portMUX_INITIALIZER_UNLOCKED;
-uint8_t dmx_in_data[DMX_PACKET_SIZE_MAX];
-bool dmx_in_connected = false;
+portMUX_TYPE dmxbox_dmx_in_spinlock = portMUX_INITIALIZER_UNLOCKED;
+uint8_t dmxbox_dmx_in_data[DMX_PACKET_SIZE_MAX];
+bool dmxbox_dmx_in_connected = false;
 
 // static uint32_t timer = 0;
 
@@ -34,18 +34,19 @@ static esp_err_t configure_dmx_in(void) {
 }
 
 static void handle_packet(const dmx_packet_t *packet_info) {
-  taskENTER_CRITICAL(&dmx_in_spinlock);
-  size_t bytes_read = dmx_read(DMX_IN_NUM, dmx_in_data, packet_info->size);
-  taskEXIT_CRITICAL(&dmx_in_spinlock);
+  taskENTER_CRITICAL(&dmxbox_dmx_in_spinlock);
+  size_t bytes_read =
+      dmx_read(DMX_IN_NUM, dmxbox_dmx_in_data, packet_info->size);
+  taskEXIT_CRITICAL(&dmxbox_dmx_in_spinlock);
   if (bytes_read == 0) {
     ESP_LOGE(TAG, "Unable to read DMX packet");
     return;
   }
 
-  if (!dmx_in_connected) {
-    dmx_in_connected = true;
+  if (!dmxbox_dmx_in_connected) {
+    dmxbox_dmx_in_connected = true;
     ESP_LOGI(TAG, "DMX connected");
-    ESP_ERROR_CHECK(led_set_state(DMX_IN_LED_GPIO, 1));
+    ESP_ERROR_CHECK(dmxbox_led_set_state(DMX_IN_LED_GPIO, 1));
   }
 
   // timer += event->duration;
@@ -60,14 +61,14 @@ static void handle_packet(const dmx_packet_t *packet_info) {
 }
 
 static void handle_timeout(void) {
-  if (dmx_in_connected) {
-    dmx_in_connected = false;
+  if (dmxbox_dmx_in_connected) {
+    dmxbox_dmx_in_connected = false;
     ESP_LOGI(TAG, "DMX connection lost");
-    ESP_ERROR_CHECK(led_set_state(DMX_IN_LED_GPIO, 0));
+    ESP_ERROR_CHECK(dmxbox_led_set_state(DMX_IN_LED_GPIO, 0));
   }
 }
 
-void dmx_receive_task(void *parameter) {
+void dmxbox_dmx_receive_task(void *parameter) {
   ESP_LOGI(TAG, "DMX receive task started");
 
   ESP_ERROR_CHECK(configure_dmx_in());

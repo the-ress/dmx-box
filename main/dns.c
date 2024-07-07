@@ -278,6 +278,6 @@ void dns_server_task(void *pvParameters) {
   vTaskDelete(NULL);
 }
 
-void start_dns_server(void) {
+void dmxbox_start_dns_server(void) {
   xTaskCreate(dns_server_task, "DNS server", 4096, NULL, 1, NULL);
 }

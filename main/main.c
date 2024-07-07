@@ -60,11 +60,11 @@ esp_err_t init_fs(void) {
 void app_main(void) {
   ESP_LOGI(TAG, "App starting...");
 
-  configure_leds();
+  dmxbox_configure_leds();
 
-  handle_factory_reset();
+  dmxbox_handle_factory_reset();
 
-  ESP_ERROR_CHECK(led_set_state(POWER_LED_GPIO, 1));
+  ESP_ERROR_CHECK(dmxbox_led_set_state(POWER_LED_GPIO, 1));
 
   dmxbox_storage_init();
   dmxbox_wifi_start();
@@ -74,31 +74,31 @@ void app_main(void) {
     dmxbox_set_first_run_completed(1);
   }
 
-  artnet_initialize();
+  dmxbox_artnet_initialize();
 
   ESP_ERROR_CHECK(init_fs());
   ESP_ERROR_CHECK(dmxbox_start_webserver());
-  start_dns_server();
+  dmxbox_start_dns_server();
 
-  xTaskCreate(artnet_receive_task, "ArtNet", 10000, NULL, 2, NULL);
+  xTaskCreate(dmxbox_artnet_receive_task, "ArtNet", 10000, NULL, 2, NULL);
 
-  xTaskCreate(dmx_receive_task, "DMX receive", 10000, NULL, 2, NULL);
+  xTaskCreate(dmxbox_dmx_receive_task, "DMX receive", 10000, NULL, 2, NULL);
 
-  xTaskCreate(dmx_send_task, "DMX send", 10000, NULL, 3, NULL);
+  xTaskCreate(dmxbox_dmx_send_task, "DMX send", 10000, NULL, 3, NULL);
 
   uint8_t data[DMX_PACKET_SIZE_MAX];
   while (1) {
     bool artnet_active;
     bool dmx_out_active;
 
-    recalc(data, &artnet_active, &dmx_out_active);
+    dmxbox_recalc(data, &artnet_active, &dmx_out_active);
 
-    taskENTER_CRITICAL(&dmx_out_spinlock);
-    memcpy(dmx_out_data, data, DMX_PACKET_SIZE_MAX);
-    taskEXIT_CRITICAL(&dmx_out_spinlock);
+    taskENTER_CRITICAL(&dmxbox_dmx_out_spinlock);
+    memcpy(dmxbox_dmx_out_data, data, DMX_PACKET_SIZE_MAX);
+    taskEXIT_CRITICAL(&dmxbox_dmx_out_spinlock);
 
-    set_artnet_active(artnet_active);
-    set_dmx_out_active(dmx_out_active);
+    dmxbox_set_artnet_active(artnet_active);
+    dmxbox_set_dmx_out_active(dmx_out_active);
 
     vTaskDelay(CONFIG_RECALC_PERIOD / portTICK_PERIOD_MS);
   }

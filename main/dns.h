@@ -1,1 +1,1 @@
-void start_dns_server(void);
+void dmxbox_start_dns_server(void);

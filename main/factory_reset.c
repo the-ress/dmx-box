@@ -17,7 +17,7 @@ bool is_reset_button_pressed() { return !gpio_get_level(RESET_BUTTON_GPIO); }
 
 bool blink_and_wait(int blink_interval, int wait_time) {
   for (int i = 0; i < wait_time / blink_interval; i++) {
-    ESP_ERROR_CHECK(led_set_state(POWER_LED_GPIO, pwr_led));
+    ESP_ERROR_CHECK(dmxbox_led_set_state(POWER_LED_GPIO, pwr_led));
     vTaskDelay(blink_interval / portTICK_PERIOD_MS);
     pwr_led = !pwr_led;
 
@@ -36,7 +36,7 @@ void perform_factory_reset(void) {
   esp_restart();
 }
 
-void handle_factory_reset(void) {
+void dmxbox_handle_factory_reset(void) {
   setup_reset_button();
   if (!is_reset_button_pressed()) {
     return;

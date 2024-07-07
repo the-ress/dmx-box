@@ -42,9 +42,9 @@ struct listener_context {
   uint8_t packet_buffer[MAX_PACKET_SIZE];
 };
 
-portMUX_TYPE artnet_spinlock = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE dmxbox_artnet_spinlock = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE client_map_spinlock = portMUX_INITIALIZER_UNLOCKED;
-uint8_t artnet_in_data[DMX_CHANNEL_COUNT] = {0};
+uint8_t dmxbox_artnet_in_data[DMX_CHANNEL_COUNT] = {0};
 static struct hashmap *client_map;
 static bool connected = false;
 
@@ -68,7 +68,7 @@ struct listener_context sta_context = {
     .sock = -1,
 };
 
-void artnet_initialize(void) {
+void dmxbox_artnet_initialize(void) {
   ap_context.interface = wifi_get_ap_interface();
   sta_context.interface = wifi_get_sta_interface();
 }
@@ -266,16 +266,16 @@ static void apply_changes(
     const uint8_t *current_data,
     uint16_t data_length
 ) {
-  taskENTER_CRITICAL(&artnet_spinlock);
+  taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
   for (int i = 0; i < data_length; i++) {
     if (current_data[i] != last_data[i]) {
-      artnet_in_data[i] = current_data[i];
+      dmxbox_artnet_in_data[i] = current_data[i];
     }
   }
-  taskEXIT_CRITICAL(&artnet_spinlock);
+  taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
 
   if (LOG_DMX_DATA) {
-    ESP_LOG_BUFFER_HEX(TAG, artnet_in_data, 16);
+    ESP_LOG_BUFFER_HEX(TAG, dmxbox_artnet_in_data, 16);
   }
 }
 
@@ -438,9 +438,9 @@ static void handle_packet(
 }
 
 static void reset_artnet_state(void) {
-  taskENTER_CRITICAL(&artnet_spinlock);
-  memset(artnet_in_data, 0, DMX_CHANNEL_COUNT);
-  taskEXIT_CRITICAL(&artnet_spinlock);
+  taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
+  memset(dmxbox_artnet_in_data, 0, DMX_CHANNEL_COUNT);
+  taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
 
   taskENTER_CRITICAL(&client_map_spinlock);
   hashmap_clear(client_map, true);
@@ -457,9 +457,9 @@ static void reset_button_loop(void *parameter) {
       if ((ev.pin == RESET_BUTTON_GPIO) && (ev.event == BUTTON_DOWN)) {
         ESP_LOGI(TAG, "Reset button pressed");
 
-        taskENTER_CRITICAL(&artnet_spinlock);
+        taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
         reset_artnet_state();
-        taskEXIT_CRITICAL(&artnet_spinlock);
+        taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
       }
     }
   }
@@ -572,7 +572,7 @@ void artnet_loop(void *parameter) {
   }
 }
 
-void artnet_receive_task(void *parameter) {
+void dmxbox_artnet_receive_task(void *parameter) {
   client_map = hashmap_new(
       sizeof(struct map_entry),
       0,
@@ -618,9 +618,9 @@ void artnet_receive_task(void *parameter) {
 
 static bool artnet_active = false;
 
-void set_artnet_active(bool state) {
+void dmxbox_set_artnet_active(bool state) {
   if (artnet_active != state) {
-    ESP_ERROR_CHECK(led_set_state(ARTNET_IN_LED_GPIO, state));
+    ESP_ERROR_CHECK(dmxbox_led_set_state(ARTNET_IN_LED_GPIO, state));
     artnet_active = state;
   }
 }

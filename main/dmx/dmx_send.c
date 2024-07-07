@@ -11,8 +11,8 @@
 
 static const char *TAG = "dmx_send";
 
-portMUX_TYPE dmx_out_spinlock = portMUX_INITIALIZER_UNLOCKED;
-uint8_t dmx_out_data[DMX_PACKET_SIZE_MAX] = {0};
+portMUX_TYPE dmxbox_dmx_out_spinlock = portMUX_INITIALIZER_UNLOCKED;
+uint8_t dmxbox_dmx_out_data[DMX_PACKET_SIZE_MAX] = {0};
 
 static esp_err_t configure_dmx_out(void) {
   ESP_LOGI(TAG, "Configuring DMX OUT");
@@ -34,17 +34,17 @@ static esp_err_t configure_dmx_out(void) {
   return ESP_OK;
 }
 
-void dmx_send_task(void *parameter) {
+void dmxbox_dmx_send_task(void *parameter) {
   ESP_LOGI(TAG, "DMX send task started");
 
   ESP_ERROR_CHECK(configure_dmx_out());
 
   while (1) {
     // write the packet to the DMX driver
-    taskENTER_CRITICAL(&dmx_out_spinlock);
+    taskENTER_CRITICAL(&dmxbox_dmx_out_spinlock);
     size_t bytes_written =
-        dmx_write(DMX_OUT_NUM, dmx_out_data, DMX_PACKET_SIZE_MAX);
-    taskEXIT_CRITICAL(&dmx_out_spinlock);
+        dmx_write(DMX_OUT_NUM, dmxbox_dmx_out_data, DMX_PACKET_SIZE_MAX);
+    taskEXIT_CRITICAL(&dmxbox_dmx_out_spinlock);
 
     if (bytes_written == 0) {
       ESP_LOGE(TAG, "Unable to write DMX data");
@@ -73,9 +73,9 @@ void dmx_send_task(void *parameter) {
 
 static bool dmx_out_active = false;
 
-void set_dmx_out_active(bool state) {
+void dmxbox_set_dmx_out_active(bool state) {
   if (dmx_out_active != state) {
-    ESP_ERROR_CHECK(led_set_state(DMX_OUT_LED_GPIO, state));
+    ESP_ERROR_CHECK(dmxbox_led_set_state(DMX_OUT_LED_GPIO, state));
     dmx_out_active = state;
   }
 }
