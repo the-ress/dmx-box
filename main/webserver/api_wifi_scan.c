@@ -10,14 +10,36 @@
 static const char TAG[] = "dmxbox_api_wifi_scan";
 
 #ifndef CONFIG_DMXBOX_MAX_WEBSOCKETS
-#define CONFIG_DMXBOX_MAX_WEBSOCKETS 20
+#define CONFIG_DMXBOX_MAX_WEBSOCKETS 2
 #endif
 
 static int websocket_fds[CONFIG_DMXBOX_MAX_WEBSOCKETS];
 static int websocket_fd_count = 0;
 static httpd_handle_t wifi_scan_httpd_server = NULL;
 
-// only call on http task
+static void dmxbox_api_wifi_scan_erase_ws(int ws) {
+  for (; ws < websocket_fd_count - 1; ws++) {
+    websocket_fds[ws] = websocket_fds[ws + 1];
+  }
+  websocket_fd_count--;
+}
+
+static void dmxbox_api_wifi_scan_on_disconnected(
+    void *arg,                   // (NULL)
+    esp_event_base_t event_base, // (EVENT_HTTP)
+    int32_t event_id,            // event_id(HTTP_SERVER_EVENT_DISCONNECTED)
+    void *event_data
+) {
+  int *fd = arg;
+  for (int ws = 0; ws < websocket_fd_count; ws++) {
+    if (websocket_fds[ws] == *fd) {
+      dmxbox_api_wifi_scan_erase_ws(ws);
+      break;
+    }
+  }
+}
+
+// only called on the httpd task
 static esp_err_t dmxbox_api_wifi_scan_push_ws(httpd_req_t *req) {
   if (websocket_fd_count == CONFIG_DMXBOX_MAX_WEBSOCKETS) {
     return ESP_ERR_NO_MEM;
@@ -37,11 +59,19 @@ static void dmxbox_api_wifi_scan_send_records(void *arg) {
           .len = strlen((const char *)result->records[r].ssid),
           .type = HTTPD_WS_TYPE_TEXT
       };
-      httpd_ws_send_frame_async(
+
+      ESP_LOGI(TAG, "sending record %d to websocket %d", r, ws);
+      esp_err_t send_err = httpd_ws_send_frame_async(
           wifi_scan_httpd_server,
           websocket_fds[ws],
           &ws_frame
       );
+
+      if (send_err != ESP_OK) {
+        ESP_LOGI(TAG, "failed to send to websocket %d, removing it", ws);
+        dmxbox_api_wifi_scan_erase_ws(ws);
+        break;
+      }
     }
   }
   free(result);
@@ -49,6 +79,11 @@ static void dmxbox_api_wifi_scan_send_records(void *arg) {
 
 // runs on the wifi event task
 static void dmxbox_api_wifi_scan_callback(dmxbox_wifi_scan_result_t *result) {
+  ESP_LOGI(
+      TAG,
+      "wifi_scan callback, got %d records, queueing http work",
+      result->count
+  );
   esp_err_t ret = ESP_OK;
   ESP_GOTO_ON_ERROR(
       httpd_queue_work(
@@ -94,6 +129,8 @@ static esp_err_t dmxbox_api_wifi_scan_req_handler(httpd_req_t *req) {
 
 esp_err_t dmxbox_api_wifi_scan_register(httpd_handle_t server) {
 
+  ESP_LOGI(TAG, "registering wifi_scan endpoint");
+
   static const httpd_uri_t uri = {
       .uri = "/api/wifi-scan",
       .method = HTTP_GET,
@@ -112,6 +149,14 @@ esp_err_t dmxbox_api_wifi_scan_register(httpd_handle_t server) {
       TAG,
       "failed to register wifi_scan callback"
   );
+
+  ESP_RETURN_ON_ERROR(
+      esp_event_handler_register(
+        EVENT_HTTP,
+        HTTP_SERVER_EVENT_DISCONNECTED,
+
+      )
+
 
   wifi_scan_httpd_server = server;
   return ESP_OK;
