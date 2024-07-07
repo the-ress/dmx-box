@@ -24,21 +24,6 @@ static void dmxbox_api_wifi_scan_erase_ws(int ws) {
   websocket_fd_count--;
 }
 
-static void dmxbox_api_wifi_scan_on_disconnected(
-    void *arg,                   // (NULL)
-    esp_event_base_t event_base, // (EVENT_HTTP)
-    int32_t event_id,            // event_id(HTTP_SERVER_EVENT_DISCONNECTED)
-    void *event_data
-) {
-  int *fd = arg;
-  for (int ws = 0; ws < websocket_fd_count; ws++) {
-    if (websocket_fds[ws] == *fd) {
-      dmxbox_api_wifi_scan_erase_ws(ws);
-      break;
-    }
-  }
-}
-
 // only called on the httpd task
 static esp_err_t dmxbox_api_wifi_scan_push_ws(httpd_req_t *req) {
   if (websocket_fd_count == CONFIG_DMXBOX_MAX_WEBSOCKETS) {
@@ -149,14 +134,6 @@ esp_err_t dmxbox_api_wifi_scan_register(httpd_handle_t server) {
       TAG,
       "failed to register wifi_scan callback"
   );
-
-  ESP_RETURN_ON_ERROR(
-      esp_event_handler_register(
-        EVENT_HTTP,
-        HTTP_SERVER_EVENT_DISCONNECTED,
-
-      )
-
 
   wifi_scan_httpd_server = server;
   return ESP_OK;

@@ -1,4 +1,4 @@
-#include "static_files.h"
+#include "ui.h"
 #include <esp_check.h>
 #include <esp_vfs.h>
 #include <string.h>
@@ -56,7 +56,7 @@ const char *dmxbox_httpd_validate_uri(const char *uri) {
   return uri;
 }
 
-esp_err_t dmxbox_httpd_static_handler(httpd_req_t *req) {
+static esp_err_t dmxbox_ui_handler(httpd_req_t *req) {
   int fd = -1;
   esp_err_t ret = ESP_OK;
   httpd_err_code_t http_status = HTTPD_500_INTERNAL_SERVER_ERROR;
@@ -146,4 +146,13 @@ send_response:
 exit:
   close(fd);
   return ret;
+}
+
+esp_err_t dmxbox_ui_register(httpd_handle_t server) {
+  static const httpd_uri_t uri = {
+      .uri = "/*",
+      .method = HTTP_GET,
+      .handler = dmxbox_ui_handler,
+  };
+  return httpd_register_uri_handler(server, &uri);
 }
