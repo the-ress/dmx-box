@@ -48,9 +48,17 @@ dmxbox_wifi_config_t dmxbox_wifi_config = {
 EventGroupHandle_t dmxbox_wifi_event_group = {};
 
 static int retry_num = 0;
+static bool is_in_disconnect = false;
 
 esp_netif_t *ap_interface;
 esp_netif_t *sta_interface;
+
+static esp_err_t dmxbox_wifi_disconnect(void) {
+  is_in_disconnect = true;
+  esp_err_t ret = esp_wifi_disconnect();
+  is_in_disconnect = false;
+  return ret;
+}
 
 static void dmxbox_wifi_on_ap_start(void) {
   ESP_LOGI(TAG, "AP started");
@@ -95,21 +103,31 @@ dmxbox_wifi_on_ap_stadisconnected(wifi_event_ap_stadisconnected_t *event) {
 }
 
 static void dmxbox_wifi_on_sta_disconnected() {
-  ESP_LOGI(TAG, "disconnected from AP as STA");
+  ESP_LOGI(TAG, "STA disconnected");
+
   led_set_state(CLIENT_MODE_LED_GPIO, 0);
   xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
   xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_disconnected);
 
-  if (dmxbox_get_sta_mode_enabled()) {
-    if (retry_num < CONFIG_WIFI_STA_MAXIMUM_RETRY) {
-      esp_wifi_connect();
-      retry_num++;
-      ESP_LOGI(TAG, "retry to connect to AP as STA");
-    } else {
-      xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_fail);
-    }
-    ESP_LOGI(TAG, "connect to AP as STA fail");
+  if (is_in_disconnect) {
+    ESP_LOGI(TAG, "is_in_disconnect true, not reconnecting as STA");
+    return;
   }
+
+  if (!dmxbox_get_sta_mode_enabled()) {
+    ESP_LOGI(TAG, "STA not enabled, not reconnecting");
+    return;
+  }
+
+  if (retry_num < CONFIG_WIFI_STA_MAXIMUM_RETRY) {
+    ESP_LOGI(TAG, "retrying to connect as STA");
+    esp_wifi_connect();
+    retry_num++;
+    return;
+  }
+
+  ESP_LOGE(TAG, "ran out of STA retry attempts");
+  xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_fail);
 }
 
 static void dmxbox_wifi_on_sta_got_ip(const ip_event_got_ip_t *event) {
@@ -300,9 +318,6 @@ void wifi_set_defaults(void) {
               .max_connection = CONFIG_WIFI_AP_MAX_STA_CONN,
               .authmode = CONFIG_WIFI_AP_AUTH_MODE,
               .pairwise_cipher = CONFIG_WIFI_AP_CIPHER_TYPE,
-              // .pmf_cfg = {
-              //     .required = false,
-              // },
           },
   };
 
@@ -420,7 +435,7 @@ void wifi_update_config(
   refresh_cached_wifi_config(&wifi_ap_config, &wifi_sta_config);
 
   if (sta_mode_enabled) {
-    ESP_ERROR_CHECK(esp_wifi_disconnect());
+    ESP_ERROR_CHECK(dmxbox_wifi_disconnect());
     ESP_ERROR_CHECK(esp_wifi_connect());
   }
 }
