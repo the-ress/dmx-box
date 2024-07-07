@@ -11,6 +11,7 @@ idf_component_register(
         "recalc.c"
         "storage.c"
         "webserver/webserver.c"
+        "webserver/static_files.c"
         "wifi.c"
     INCLUDE_DIRS "."
 )

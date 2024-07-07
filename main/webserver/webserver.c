@@ -7,19 +7,20 @@
 #include <esp_wifi.h>
 #include <string.h>
 
+#include "static_files.h"
 #include "storage.h"
 #include "webserver.h"
 #include "wifi.h"
 
 static const char *TAG = "dmxbox_webserver";
 
-#define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
 
-#define CHECK_FILE_EXTENSION(filename, ext)                                    \
-  (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
-
 static char scratch[SCRATCH_BUFSIZE];
+
+#ifndef CONFIG_WEB_MOUNT_POINT
+#define CONFIG_WEB_MOUNT_POINT "/www"
+#endif
 
 #define CONFIG_CORS_ORIGIN "http://localhost:8000"
 #ifdef CONFIG_CORS_ORIGIN
@@ -29,27 +30,6 @@ static const char *dmxbox_api_cors_origin = NULL;
 #endif
 
 /* Set HTTP response content type according to file extension */
-static esp_err_t
-set_content_type_from_file(httpd_req_t *req, const char *filepath) {
-  const char *type = "text/plain";
-  if (CHECK_FILE_EXTENSION(filepath, ".html")) {
-    type = "text/html";
-  } else if (CHECK_FILE_EXTENSION(filepath, ".js")) {
-    type = "application/javascript";
-  } else if (CHECK_FILE_EXTENSION(filepath, ".css")) {
-    type = "text/css";
-  } else if (CHECK_FILE_EXTENSION(filepath, ".png")) {
-    type = "image/png";
-  } else if (CHECK_FILE_EXTENSION(filepath, ".ico")) {
-    type = "image/x-icon";
-  } else if (CHECK_FILE_EXTENSION(filepath, ".svg")) {
-    type = "text/xml";
-  } else if (CHECK_FILE_EXTENSION(filepath, ".woff2")) {
-    type = "font/woff2";
-  }
-  return httpd_resp_set_type(req, type);
-}
-
 static esp_err_t dmxbox_api_set_cors_header(httpd_req_t *req) {
   if (dmxbox_api_cors_origin) {
     ESP_RETURN_ON_ERROR(
@@ -62,11 +42,7 @@ static esp_err_t dmxbox_api_set_cors_header(httpd_req_t *req) {
         "failed to set allow origin header"
     );
     ESP_RETURN_ON_ERROR(
-        httpd_resp_set_hdr(
-            req,
-            "Access-Control-Allow-Methods",
-            "GET,PUT"
-        ),
+        httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET,PUT"),
         __func__,
         "failed to set allow methods header"
     );
@@ -75,54 +51,94 @@ static esp_err_t dmxbox_api_set_cors_header(httpd_req_t *req) {
 }
 
 static esp_err_t common_get_handler(httpd_req_t *req) {
-  char filepath[FILE_PATH_MAX];
+  int fd = -1;
+  esp_err_t ret = ESP_OK;
+  httpd_err_code_t http_status = HTTPD_500_INTERNAL_SERVER_ERROR;
 
-  strlcpy(filepath, WEB_MOUNT_POINT, sizeof(filepath));
-  if (req->uri[strlen(req->uri) - 1] == '/') {
-    strlcat(filepath, "/index.html", sizeof(filepath));
-  } else {
-    strlcat(filepath, req->uri, sizeof(filepath));
+  ESP_LOGI(__func__, "Handling %s", req->uri);
+
+  const char *uri = dmxbox_httpd_validate_uri(req->uri);
+  if (uri == NULL) {
+    ESP_LOGE(__func__, "invalid URL");
+    http_status = HTTPD_404_NOT_FOUND;
+    ret = ESP_FAIL;
+    goto send_response;
   }
-  int fd = open(filepath, O_RDONLY, 0);
+
+  char filepath[140] = CONFIG_WEB_MOUNT_POINT;
+  if (strlcat(filepath, "/", sizeof(filepath)) >= sizeof(filepath)) {
+    http_status = HTTPD_404_NOT_FOUND;
+    ret = ESP_FAIL;
+    goto send_response;
+  }
+
+  if (strlcat(filepath, uri, sizeof(filepath)) >= sizeof(filepath)) {
+    http_status = HTTPD_404_NOT_FOUND;
+    ret = ESP_FAIL;
+    goto send_response;
+  }
+
+  fd = open(filepath, O_RDONLY, 0);
   if (fd == -1) {
-    ESP_LOGE(TAG, "Failed to open file : %s", filepath);
-    httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File not found");
-    return ESP_FAIL;
+    ESP_LOGE(__func__, "Failed to open file : %s", filepath);
+    http_status = HTTPD_404_NOT_FOUND;
+    ret = ESP_FAIL;
+    goto send_response;
   }
 
-  set_content_type_from_file(req, filepath);
+  const char *type = dmxbox_httpd_type_from_path(filepath);
+  ESP_LOGI(__func__, "MIME type: %s", type);
+  ESP_GOTO_ON_ERROR(
+      httpd_resp_set_type(req, type),
+      exit,
+      __func__,
+      "httpd_resp_set_type failed"
+  );
 
-  char *chunk = scratch;
-  ssize_t read_bytes;
   do {
-    /* Read file in chunks into the scratch buffer */
-    read_bytes = read(fd, chunk, SCRATCH_BUFSIZE);
-    if (read_bytes == -1) {
-      ESP_LOGE(TAG, "Failed to read file : %s", filepath);
-    } else if (read_bytes > 0) {
-      ESP_LOGD(TAG, "Sending %d-byte chunk of %s", read_bytes, filepath);
-      /* Send the buffer contents as HTTP response chunk */
-      if (httpd_resp_send_chunk(req, chunk, read_bytes) != ESP_OK) {
-        close(fd);
-        ESP_LOGE(TAG, "File sending failed: %s", filepath);
-        /* Abort sending file */
-        httpd_resp_sendstr_chunk(req, NULL);
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(
-            req,
-            HTTPD_500_INTERNAL_SERVER_ERROR,
-            "Failed to send file"
-        );
-        return ESP_FAIL;
-      }
+    size_t read_bytes = read(fd, scratch, SCRATCH_BUFSIZE);
+    switch (read_bytes) {
+    case -1:
+      ESP_LOGE(__func__, "Failed to read file %s", filepath);
+      ret = ESP_FAIL;
+      http_status = HTTPD_500_INTERNAL_SERVER_ERROR;
+      goto send_response;
+
+    case 0:
+      ESP_LOGI(__func__, "File sending complete: %s", filepath);
+      goto send_response;
+
+    default:
+      ESP_LOGD(__func__, "Sending %d-byte chunk of %s", read_bytes, filepath);
+      ESP_GOTO_ON_ERROR(
+          httpd_resp_send_chunk(req, scratch, read_bytes),
+          exit,
+          __func__,
+          "http_resp_send_chunk failed"
+      );
     }
-  } while (read_bytes > 0);
-  /* Close file after sending complete */
+  } while (ret == ESP_OK);
+
+send_response:
+  if (ret == ESP_OK) {
+    ESP_GOTO_ON_ERROR(
+        httpd_resp_send_chunk(req, NULL, 0),
+        exit,
+        __func__,
+        "failed to send the final chunk"
+    );
+  } else {
+    ESP_GOTO_ON_ERROR(
+        httpd_resp_send_err(req, http_status, NULL),
+        exit,
+        __func__,
+        "failed to send HTTP 500"
+    );
+  }
+
+exit:
   close(fd);
-  ESP_LOGI(TAG, "File sending complete: %s", filepath);
-  /* Respond with an empty chunk to signal HTTP response completion */
-  httpd_resp_send_chunk(req, NULL, 0);
-  return ESP_OK;
+  return ret;
 }
 
 static const char *auth_mode_to_string(wifi_auth_mode_t auth_mode) {
