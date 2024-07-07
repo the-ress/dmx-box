@@ -3,9 +3,9 @@
 #include <esp_log.h>
 
 #include "api_config.h"
-#include "api_wifi_scan.h"
 #include "ui.h"
 #include "webserver.h"
+#include "ws.h"
 
 static const char *TAG = "dmxbox_webserver";
 
@@ -13,7 +13,7 @@ esp_err_t dmxbox_webserver_start(void) {
   httpd_handle_t server = NULL;
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.task_priority = 1;
-  config.max_open_sockets = 10;
+  config.max_open_sockets = CONFIG_DMXBOX_WEBSEVER_MAX_SOCKETS;
   config.lru_purge_enable = true;
   config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -34,16 +34,12 @@ esp_err_t dmxbox_webserver_start(void) {
   );
 
   ESP_RETURN_ON_ERROR(
-      dmxbox_api_wifi_scan_register(server),
+      dmxbox_ws_register(server),
       TAG,
-      "api_wifi_scan_register failed"
+      "ws_register failed"
   );
 
-  ESP_RETURN_ON_ERROR(
-      dmxbox_ui_register(server),
-      TAG,
-      "ui_register failed"
-  );
+  ESP_RETURN_ON_ERROR(dmxbox_ui_register(server), TAG, "ui_register failed");
 
   return ESP_OK;
 }
