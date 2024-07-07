@@ -3,6 +3,7 @@
 #include "artnet/artnet.h"
 #include "const.h"
 #include "dmx/dmx_receive.h"
+#include "effects/effects.h"
 #include "recalc.h"
 
 // static const char *TAG = "recalc";
@@ -29,8 +30,10 @@ void dmxbox_recalc(
   }
 
   taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
-  for (int i = 1; i < DMX_PACKET_SIZE_MAX; i++) {
-    data[i] = MAX(data[i], dmxbox_artnet_in_data[i - 1]);
+  for (uint16_t i = 1; i < DMX_PACKET_SIZE_MAX; i++) {
+    data[i] =
+        MAX(MAX(data[i], dmxbox_artnet_in_data[i - 1]),
+            dmxbox_effects_data[i - 1]);
 
     *artnet_active |= dmxbox_artnet_in_data[i - 1] != 0;
     *dmx_out_active |= data[i] != 0;

@@ -13,7 +13,6 @@
 #include "const.h"
 #include "hashmap.h"
 #include "led.h"
-#include "storage.h"
 #include "wifi.h"
 #include <stdint.h>
 
@@ -267,7 +266,7 @@ static void apply_changes(
     uint16_t data_length
 ) {
   taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
-  for (int i = 0; i < data_length; i++) {
+  for (uint16_t i = 0; i < data_length; i++) {
     if (current_data[i] != last_data[i]) {
       dmxbox_artnet_in_data[i] = current_data[i];
     }

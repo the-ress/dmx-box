@@ -11,6 +11,7 @@
 #include "dmx/dmx_receive.h"
 #include "dmx/dmx_send.h"
 #include "dns.h"
+#include "effects/effects.h"
 #include "factory_reset.h"
 #include "led.h"
 #include "recalc.h"
@@ -76,6 +77,8 @@ void app_main(void) {
 
   dmxbox_artnet_initialize();
 
+  dmxbox_effects_initialize();
+
   ESP_ERROR_CHECK(init_fs());
   ESP_ERROR_CHECK(dmxbox_webserver_start());
   dmxbox_start_dns_server();
@@ -84,7 +87,9 @@ void app_main(void) {
 
   xTaskCreate(dmxbox_dmx_receive_task, "DMX receive", 10000, NULL, 2, NULL);
 
-  xTaskCreate(dmxbox_dmx_send_task, "DMX send", 10000, NULL, 3, NULL);
+  xTaskCreate(dmxbox_effects_task, "Effect runner", 10000, NULL, 3, NULL);
+
+  xTaskCreate(dmxbox_dmx_send_task, "DMX send", 10000, NULL, 4, NULL);
 
   uint8_t data[DMX_PACKET_SIZE_MAX];
   while (1) {

@@ -3,3 +3,4 @@ build/
 node_modules/
 sdkconfig
 sdkconfig.old
+.vscode/settings.json

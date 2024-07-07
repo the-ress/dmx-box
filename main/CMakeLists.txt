@@ -4,6 +4,7 @@ idf_component_register(
         "dmx/dmx_receive.c"
         "dmx/dmx_send.c"
         "dns.c"
+        "effects/effects.c"
         "factory_reset.c"
         "hashmap.c"
         "led.c"
