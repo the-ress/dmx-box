@@ -287,6 +287,7 @@ void dmxbox_wifi_start() {
       wifi_ap_config.ap.authmode,
       wifi_ap_config.ap.channel
   );
+
   if (sta_mode_enabled) {
     ESP_LOGI(
         TAG,
