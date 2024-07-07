@@ -1,5 +1,5 @@
 import * as ReactDOM from 'react-dom/client'
-import WiFiPage from './pages/WiFi.tsx'
+import App from './App.tsx'
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { StrictMode } from 'react'
@@ -27,6 +27,6 @@ z.setErrorMap(
 const root = ReactDOM.createRoot(rootElement)
 root.render(
   <StrictMode>
-    <WiFiPage />
+    <App />
   </StrictMode>
 )

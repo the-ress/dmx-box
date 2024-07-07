@@ -1,30 +1,5 @@
-import { Md11Mp } from 'react-icons/md'
-import { WiFiSecurityType, WiFiFields, WiFiChannel } from './schema'
-
-type ApiAuthMode =
-  | 'open'
-  | 'WEP'
-  | 'WPA_PSK'
-  | 'WPA_WPA2_PSK'
-  | 'WPA2_PSK'
-  | 'WPA2_WPA3_PSK'
-  | 'WPA3_PSK'
-
-interface ApiModel {
-  hostname: string
-  ap: {
-    ssid: string
-    password: string
-    auth_mode: ApiAuthMode
-    channel: number
-  }
-  sta: {
-    enabled: boolean
-    ssid: string
-    password: string
-    auth_mode: ApiAuthMode
-  }
-}
+import { WiFiFields, WiFiSecurityType } from "./schema"
+import { ApiModel, ApiAuthMode } from "../../api/wifi"
 
 function apiAuthModeToForm(authMode: ApiAuthMode): WiFiSecurityType {
   switch (authMode) {
@@ -55,7 +30,7 @@ function apiAuthModeFromForm(type: WiFiSecurityType): ApiAuthMode {
   return 'WPA2_WPA3_PSK'
 }
 
-function apiModelToFields(model: ApiModel): WiFiFields {
+export function apiModelToFields(model: ApiModel): WiFiFields {
   return {
     hostName: model.hostname,
     accessPoint: {
@@ -77,7 +52,7 @@ function apiModelToFields(model: ApiModel): WiFiFields {
   }
 }
 
-function apiModelFromFields(fields: WiFiFields): ApiModel {
+export function apiModelFromFields(fields: WiFiFields): ApiModel {
   return {
     hostname: fields.hostName,
     ap: {
@@ -95,28 +70,5 @@ function apiModelFromFields(fields: WiFiFields): ApiModel {
       password: fields.existingNetwork.security.password,
     }
   }
-
 }
 
-const server = window.location.hash ? window.location.hash.substring(1) : ''
-const wifiEndpoint = `${server}/api/wifi-config`
-
-export async function loadWiFiConfig(): Promise<WiFiFields> {
-  const response = await fetch(wifiEndpoint)
-  if (!response.ok) {
-    throw await response.text()
-  }
-  const model = await response.json()
-  return apiModelToFields(model)
-}
-
-export async function submitWiFiConfig(fields: WiFiFields): Promise<void> {
-  const model = apiModelFromFields(fields)
-  const response = await fetch(wifiEndpoint, {
-    method: 'PUT',
-    body: JSON.stringify(model)
-  })
-  if (!response.ok) {
-    throw await response.text()
-  }
-}
