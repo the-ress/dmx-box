@@ -79,8 +79,7 @@ dmxbox_wifi_on_ap_staconnected(const wifi_event_ap_staconnected_t *event) {
 }
 
 static void
-dmxbox_wifi_on_ap_stadisconnected(const wifi_event_ap_stadisconnected_t *event
-) {
+dmxbox_wifi_on_ap_stadisconnected(wifi_event_ap_stadisconnected_t *event) {
   ESP_LOGI(
       TAG,
       "station " MACSTR " leave, AID=%d",
@@ -95,7 +94,7 @@ dmxbox_wifi_on_ap_stadisconnected(const wifi_event_ap_stadisconnected_t *event
   led_set_state(AP_MODE_LED_GPIO, sta_list.num != 0);
 }
 
-static void dmxbox_wifi_on_sta_stop() {
+static void dmxbox_wifi_on_sta_disconnected() {
   ESP_LOGI(TAG, "disconnected from AP as STA");
   led_set_state(CLIENT_MODE_LED_GPIO, 0);
   xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
@@ -149,8 +148,8 @@ static void dmxbox_wifi_on_wifi_event(
     esp_wifi_connect();
     break;
 
-  case WIFI_EVENT_STA_STOP:
-    dmxbox_wifi_on_sta_stop();
+  case WIFI_EVENT_STA_DISCONNECTED:
+    dmxbox_wifi_on_sta_disconnected();
     break;
 
   default:
@@ -186,7 +185,7 @@ static void dmxbox_wifi_init(void) {
   ap_interface = esp_netif_create_default_wifi_ap();
   sta_interface = esp_netif_create_default_wifi_sta();
 
-  const char* hostname = dmxbox_get_hostname();
+  const char *hostname = dmxbox_get_hostname();
 
   ESP_LOGI(TAG, "Setting AP hostname to '%s'", hostname);
   ESP_ERROR_CHECK(esp_netif_set_hostname(ap_interface, hostname));
@@ -256,6 +255,7 @@ void dmxbox_wifi_start() {
 
   wifi_config_t wifi_ap_config;
   ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_AP, &wifi_ap_config));
+
   wifi_config_t wifi_sta_config;
   ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_STA, &wifi_sta_config));
 
