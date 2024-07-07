@@ -48,7 +48,6 @@ dmxbox_wifi_config_t dmxbox_wifi_config = {
 EventGroupHandle_t dmxbox_wifi_event_group = {};
 
 static int retry_num = 0;
-static char dmxbox_hostname[] = "dmx-box";
 
 esp_netif_t *ap_interface;
 esp_netif_t *sta_interface;
@@ -187,8 +186,13 @@ static void dmxbox_wifi_init(void) {
   ap_interface = esp_netif_create_default_wifi_ap();
   sta_interface = esp_netif_create_default_wifi_sta();
 
-  ESP_ERROR_CHECK(esp_netif_set_hostname(ap_interface, dmxbox_hostname));
-  ESP_ERROR_CHECK(esp_netif_set_hostname(sta_interface, dmxbox_hostname));
+  const char* hostname = dmxbox_get_hostname();
+
+  ESP_LOGI(TAG, "Setting AP hostname to '%s'", hostname);
+  ESP_ERROR_CHECK(esp_netif_set_hostname(ap_interface, hostname));
+
+  ESP_LOGI(TAG, "Setting STA hostname to '%s'", hostname);
+  ESP_ERROR_CHECK(esp_netif_set_hostname(sta_interface, hostname));
 
   ESP_ERROR_CHECK(esp_event_handler_register(
       WIFI_EVENT,
@@ -203,7 +207,6 @@ static void dmxbox_wifi_init(void) {
       &dmxbox_wifi_on_ip_event,
       NULL
   ));
-
 
   // disable wifi power save to improve performance
   esp_wifi_set_ps(WIFI_PS_NONE);

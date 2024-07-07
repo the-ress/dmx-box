@@ -145,6 +145,7 @@ static esp_err_t api_wifi_config_get_handler(httpd_req_t *req) {
 
   cJSON *ap, *sta;
   cJSON *root = cJSON_CreateObject();
+  cJSON_AddStringToObject(root, "hostname", dmxbox_get_hostname());
   cJSON_AddItemToObject(root, "ap", ap = cJSON_CreateObject());
   cJSON_AddItemToObject(root, "sta", sta = cJSON_CreateObject());
 

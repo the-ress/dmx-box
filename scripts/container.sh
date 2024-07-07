@@ -28,7 +28,8 @@ run_idf() {
   run_docker \
     --workdir /project \
     $1 \
-    espressif/idf:release-${ESPIDF_RELEASE} $2
+    espressif/idf:release-${ESPIDF_RELEASE} \
+    /bin/sh -c "$2"
 }
 
 build_ui() {
@@ -48,7 +49,8 @@ case "$1" in
     build_main
     ;;
   flash)
-    run_idf '' "idf.py flash --port ${DMXBOX_DEVICE}"
+    run_idf '--tty --interactive' \
+      "idf.py flash --port ${DMXBOX_DEVICE} && idf.py monitor --port ${DMXBOX_DEVICE}"
     ;;
   monitor)
     run_idf '--tty --interactive' "idf.py monitor --port ${DMXBOX_DEVICE}"
