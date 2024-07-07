@@ -1,2 +1,4 @@
+#pragma once
+#include <esp_err.h>
 
-void start_webserver(void);
+esp_err_t dmxbox_start_webserver(void);

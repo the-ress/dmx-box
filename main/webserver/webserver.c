@@ -3,7 +3,6 @@
 #include <esp_http_client.h>
 #include <esp_http_server.h>
 #include <esp_log.h>
-#include <esp_vfs.h>
 #include <esp_wifi.h>
 #include <string.h>
 
@@ -13,14 +12,6 @@
 #include "wifi.h"
 
 static const char *TAG = "dmxbox_webserver";
-
-#define SCRATCH_BUFSIZE (10240)
-
-static char scratch[SCRATCH_BUFSIZE];
-
-#ifndef CONFIG_WEB_MOUNT_POINT
-#define CONFIG_WEB_MOUNT_POINT "/www"
-#endif
 
 #define CONFIG_CORS_ORIGIN "http://localhost:8000"
 #ifdef CONFIG_CORS_ORIGIN
@@ -48,97 +39,6 @@ static esp_err_t dmxbox_api_set_cors_header(httpd_req_t *req) {
     );
   }
   return ESP_OK;
-}
-
-static esp_err_t common_get_handler(httpd_req_t *req) {
-  int fd = -1;
-  esp_err_t ret = ESP_OK;
-  httpd_err_code_t http_status = HTTPD_500_INTERNAL_SERVER_ERROR;
-
-  ESP_LOGI(__func__, "Handling %s", req->uri);
-
-  const char *uri = dmxbox_httpd_validate_uri(req->uri);
-  if (uri == NULL) {
-    ESP_LOGE(__func__, "invalid URL");
-    http_status = HTTPD_404_NOT_FOUND;
-    ret = ESP_FAIL;
-    goto send_response;
-  }
-
-  char filepath[140] = CONFIG_WEB_MOUNT_POINT;
-  if (strlcat(filepath, "/", sizeof(filepath)) >= sizeof(filepath)) {
-    http_status = HTTPD_404_NOT_FOUND;
-    ret = ESP_FAIL;
-    goto send_response;
-  }
-
-  if (strlcat(filepath, uri, sizeof(filepath)) >= sizeof(filepath)) {
-    http_status = HTTPD_404_NOT_FOUND;
-    ret = ESP_FAIL;
-    goto send_response;
-  }
-
-  fd = open(filepath, O_RDONLY, 0);
-  if (fd == -1) {
-    ESP_LOGE(__func__, "Failed to open file : %s", filepath);
-    http_status = HTTPD_404_NOT_FOUND;
-    ret = ESP_FAIL;
-    goto send_response;
-  }
-
-  const char *type = dmxbox_httpd_type_from_path(filepath);
-  ESP_LOGI(__func__, "MIME type: %s", type);
-  ESP_GOTO_ON_ERROR(
-      httpd_resp_set_type(req, type),
-      exit,
-      __func__,
-      "httpd_resp_set_type failed"
-  );
-
-  do {
-    size_t read_bytes = read(fd, scratch, SCRATCH_BUFSIZE);
-    switch (read_bytes) {
-    case -1:
-      ESP_LOGE(__func__, "Failed to read file %s", filepath);
-      ret = ESP_FAIL;
-      http_status = HTTPD_500_INTERNAL_SERVER_ERROR;
-      goto send_response;
-
-    case 0:
-      ESP_LOGI(__func__, "File sending complete: %s", filepath);
-      goto send_response;
-
-    default:
-      ESP_LOGD(__func__, "Sending %d-byte chunk of %s", read_bytes, filepath);
-      ESP_GOTO_ON_ERROR(
-          httpd_resp_send_chunk(req, scratch, read_bytes),
-          exit,
-          __func__,
-          "http_resp_send_chunk failed"
-      );
-    }
-  } while (ret == ESP_OK);
-
-send_response:
-  if (ret == ESP_OK) {
-    ESP_GOTO_ON_ERROR(
-        httpd_resp_send_chunk(req, NULL, 0),
-        exit,
-        __func__,
-        "failed to send the final chunk"
-    );
-  } else {
-    ESP_GOTO_ON_ERROR(
-        httpd_resp_send_err(req, http_status, NULL),
-        exit,
-        __func__,
-        "failed to send HTTP 500"
-    );
-  }
-
-exit:
-  close(fd);
-  return ret;
 }
 
 static const char *auth_mode_to_string(wifi_auth_mode_t auth_mode) {
@@ -223,10 +123,12 @@ static esp_err_t api_wifi_config_get_handler(httpd_req_t *req) {
 }
 
 static esp_err_t api_wifi_config_put_handler(httpd_req_t *req) {
+  static char scratch[10240];
+
   int total_len = req->content_len;
   int cur_len = 0;
   int received = 0;
-  if (total_len >= SCRATCH_BUFSIZE) {
+  if (total_len >= sizeof(scratch)) {
     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Content too long");
     return ESP_OK;
   }
@@ -322,31 +224,7 @@ static esp_err_t dmxbox_api_options_handler(httpd_req_t *req) {
   return ESP_OK;
 }
 
-static const httpd_uri_t api_wifi_config_get = {
-    .uri = "/api/wifi-config",
-    .method = HTTP_GET,
-    .handler = api_wifi_config_get_handler,
-};
-
-static const httpd_uri_t api_wifi_config_options = {
-    .uri = "/api/wifi-config",
-    .method = HTTP_OPTIONS,
-    .handler = dmxbox_api_options_handler,
-};
-static const httpd_uri_t api_wifi_config_put = {
-    .uri = "/api/wifi-config",
-    .method = HTTP_PUT,
-    .handler = api_wifi_config_put_handler,
-};
-
-/* URI handler for getting web server files */
-static const httpd_uri_t common_get_uri = {
-    .uri = "/*",
-    .method = HTTP_GET,
-    .handler = common_get_handler,
-};
-
-void start_webserver(void) {
+esp_err_t dmxbox_start_webserver(void) {
   httpd_handle_t server = NULL;
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.task_priority = 1;
@@ -356,15 +234,61 @@ void start_webserver(void) {
 
   // Start the httpd server
   ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
-  if (!httpd_start(&server, &config) == ESP_OK) {
-    ESP_LOGI(TAG, "Error starting server!");
-    return;
-  }
+  ESP_RETURN_ON_ERROR(
+      httpd_start(&server, &config),
+      __func__,
+      "httpd_start failed"
+  );
 
-  // Set URI handlers
+  static const httpd_uri_t handler_config_get = {
+      .uri = "/api/wifi-config",
+      .method = HTTP_GET,
+      .handler = api_wifi_config_get_handler,
+  };
+
+  static const httpd_uri_t handler_config_options = {
+      .uri = "/api/wifi-config",
+      .method = HTTP_OPTIONS,
+      .handler = dmxbox_api_options_handler,
+  };
+
+  static const httpd_uri_t handler_config_put = {
+      .uri = "/api/wifi-config",
+      .method = HTTP_PUT,
+      .handler = api_wifi_config_put_handler,
+  };
+
+  static const httpd_uri_t handler_wildcard = {
+      .uri = "/*",
+      .method = HTTP_GET,
+      .handler = &dmxbox_httpd_static_handler,
+  };
+
   ESP_LOGI(TAG, "Registering URI handlers");
-  httpd_register_uri_handler(server, &api_wifi_config_get);
-  httpd_register_uri_handler(server, &api_wifi_config_put);
-  httpd_register_uri_handler(server, &api_wifi_config_options);
-  httpd_register_uri_handler(server, &common_get_uri);
+
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &handler_config_get),
+      __func__,
+      "handler_config_get failed"
+  );
+
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &handler_config_put),
+      __func__,
+      "handler_config_put failed"
+  );
+
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &handler_config_options),
+      __func__,
+      "handler_config_options failed"
+  );
+
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &handler_wildcard),
+      __func__,
+      "handler_wildcard failed"
+  );
+
+  return ESP_OK;
 }

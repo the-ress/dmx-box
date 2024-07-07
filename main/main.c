@@ -77,7 +77,7 @@ void app_main(void) {
   artnet_initialize();
 
   ESP_ERROR_CHECK(init_fs());
-  start_webserver();
+  ESP_ERROR_CHECK(dmxbox_start_webserver());
   start_dns_server();
 
   xTaskCreate(artnet_receive_task, "ArtNet", 10000, NULL, 2, NULL);
