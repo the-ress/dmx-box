@@ -1,0 +1,33 @@
+FROM dmxbox/node
+
+RUN : \
+  && apt-get update \
+  && apt-get install -y \
+    cmake \
+    clang \
+    clangd \
+    eza \
+    fzf \
+    neovim \
+    ripgrep \
+    zsh \
+  && apt-get autoremove -y \
+  && rm -rf /var/lib/apt/lists/* \
+  && sh -c "$(curl -fsLS https://starship.rs/install.sh)" -- --yes \
+  && :
+
+USER ubuntu
+ENV HOME /home/ubuntu
+ENV ENV "${HOME}/.shrc"
+ENV XDG_CACHE_HOME "${HOME}/.cache"
+ENV XDG_CONFIG_HOME "${HOME}/.config"
+ENV XDG_STATE_HOME "${HOME}/.local/state"
+ENV ZDOTDIR "${XDG_CONFIG_HOME}/zsh"
+
+WORKDIR "${HOME}"
+
+RUN : \
+  && sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply juliekoubova \
+  && :
+
+CMD [ "/bin/zsh" ]
