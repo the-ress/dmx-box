@@ -1,4 +1,4 @@
-FROM dmxbox/node
+FROM dmxbox/espidf
 
 RUN : \
   && apt-get update \
@@ -28,6 +28,9 @@ WORKDIR "${HOME}"
 
 RUN : \
   && sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply juliekoubova \
+  && export NVM_DIR="$HOME/.config/nvm" \
+  && \. "$NVM_DIR/nvm.sh" \
+  && nvm install 20 \
   && :
 
 CMD [ "/bin/zsh" ]

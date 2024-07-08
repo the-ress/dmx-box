@@ -14,5 +14,6 @@ exec $DOCKER run \
   --device "${DMXBOX_DEVICE}" \
   --userns=keep-id \
   --group-add keep-groups \
+  --workdir "${DMXBOX_MOUNTPOINT}" \
   dmxbox
   "$@"
