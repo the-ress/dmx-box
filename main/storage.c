@@ -17,7 +17,20 @@ static char hostname_[16] = "dmx-box";
 
 static nvs_handle_t dmxbox_storage_open(nvs_open_mode_t open_mode) {
   nvs_handle_t storage;
-  ESP_ERROR_CHECK(nvs_open(dmxbox_nvs_ns, open_mode, &storage));
+  esp_err_t result = nvs_open(dmxbox_nvs_ns, open_mode, &storage);
+  if (result == ESP_ERR_NVS_NOT_FOUND) {
+    ESP_LOGW(
+        TAG,
+        "'%s' namespace doesn't exist, trying to create",
+        dmxbox_nvs_ns
+    );
+
+    ESP_ERROR_CHECK(nvs_open(dmxbox_nvs_ns, NVS_READWRITE, &storage));
+    nvs_close(storage);
+
+    result = nvs_open(dmxbox_nvs_ns, open_mode, &storage);
+  }
+  ESP_ERROR_CHECK(result);
   return storage;
 }
 
