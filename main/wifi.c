@@ -329,7 +329,7 @@ void wifi_set_defaults(void) {
 
   sprintf(
       (char *)wifi_ap_config.ap.ssid,
-      "%s%x%x%x",
+      "%s%02x%02x%02x",
       CONFIG_WIFI_AP_SSID,
       mac[3],
       mac[4],
@@ -449,4 +449,3 @@ void wifi_update_config(
 esp_netif_t *wifi_get_ap_interface(void) { return ap_interface; }
 
 esp_netif_t *wifi_get_sta_interface(void) { return sta_interface; }
-
