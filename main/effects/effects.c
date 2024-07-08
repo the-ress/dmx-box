@@ -146,7 +146,7 @@ void dmxbox_effects_initialize() {
     effect->rate = 100;
     effect->saved_total_offset_internal_value = 0;
 
-    int64_t current_offset = 0;
+    uint32_t current_offset = 0;
 
     int step_number = 1;
     for (struct step *step = effect->steps_head; step;
@@ -223,13 +223,12 @@ activate_new_steps(struct effect *effect, int64_t current_total_offset) {
   if (effect->effect_length == 0)
     return;
 
-  int64_t current_offset = current_total_offset % effect->effect_length;
+  uint32_t current_offset = current_total_offset % effect->effect_length;
   int64_t current_offset_base = current_total_offset - current_offset;
 
   // TODO: check if firing multiple steps at once (even at the end of the cycle)
   // works
 
-  // TODO optimize
   if (effect->effect_length <= current_total_offset) {
     // start any steps we might have missed at the end of previous cycle
     int step_number = 1;
@@ -285,7 +284,7 @@ static void process_chase_effect(
       continue;
     }
 
-    int64_t current_step_offset = current_total_offset - step->total_offset;
+    uint32_t current_step_offset = current_total_offset - step->total_offset;
 
     uint8_t step_fade_level = 0;
 
