@@ -24,9 +24,13 @@ z.setErrorMap(
   })
 )
 
+const url = window.location.hash
+  ? window.location.hash.substring(1)
+  : window.origin
+
 const root = ReactDOM.createRoot(rootElement)
 root.render(
   <StrictMode>
-    <App />
+    <App serverUrl={new URL(url)} />
   </StrictMode>
 )

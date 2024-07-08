@@ -1,6 +1,7 @@
 #include "ws.h"
 #include "webserver.h"
 #include "wifi_scan.h"
+#include "ws_ap_found.h"
 #include <cJSON.h>
 #include <esp_check.h>
 #include <esp_err.h>
@@ -39,6 +40,16 @@ static dmxbox_ws_session_t *dmxbox_ws_session_ensure(httpd_req_t *req) {
   return session;
 }
 
+// frees json
+static httpd_ws_frame_t dmxbox_ws_frame_from_json(const char *json) {
+  httpd_ws_frame_t frame = {
+      .payload = (uint8_t*)json,
+      .len = strlen(json),
+      .type = HTTPD_WS_TYPE_TEXT,
+  };
+  return frame;
+}
+
 // runs on the httpd task
 static void dmxbox_ws_send_ap_records(void *arg) {
   dmxbox_wifi_scan_result_t *result = arg;
@@ -53,27 +64,28 @@ static void dmxbox_ws_send_ap_records(void *arg) {
       "failed to get client list"
   );
 
-  for (int c = 0; c < clients; c++) {
-    httpd_ws_client_info_t client_info =
-        httpd_ws_get_fd_info(dmxbox_ws_server, client_fds[c]);
-    if (client_info != HTTPD_WS_CLIENT_WEBSOCKET) {
+  for (int r = 0; r < result->count; r++) {
+    char *json = dmxbox_ws_ap_found_create(&result->records[r]);
+    if (!json) {
+      ESP_LOGE(TAG, "failed to create ws_ap_found");
       continue;
     }
-    dmxbox_ws_session_t *session =
-        httpd_sess_get_ctx(dmxbox_ws_server, client_fds[c]);
-    if (!session) {
-      continue;
-    }
-    for (int r = 0; r < result->count; r++) {
-      httpd_ws_frame_t ws_frame = {
-          .payload = result->records[r].ssid,
-          .len = strlen((const char *)result->records[r].ssid),
-          .type = HTTPD_WS_TYPE_TEXT
-      };
-
+    httpd_ws_frame_t ws_frame = dmxbox_ws_frame_from_json(json);
+    for (int c = 0; c < clients; c++) {
+      httpd_ws_client_info_t client_info =
+          httpd_ws_get_fd_info(dmxbox_ws_server, client_fds[c]);
+      if (client_info != HTTPD_WS_CLIENT_WEBSOCKET) {
+        continue;
+      }
+      dmxbox_ws_session_t *session =
+          httpd_sess_get_ctx(dmxbox_ws_server, client_fds[c]);
+      if (!session || !session->scan_aps) {
+        continue;
+      }
       ESP_LOGI(TAG, "sending record %d to websocket %d", r, c);
       httpd_ws_send_frame_async(dmxbox_ws_server, client_fds[c], &ws_frame);
     }
+    free(json);
   }
 
 exit:
@@ -99,42 +111,40 @@ error:
   (void)ret;
 }
 
-static esp_err_t dmxbox_ws_parse_frame(
+static cJSON *dmxbox_ws_frame_to_json(
     dmxbox_ws_session_t *session,
     const httpd_ws_frame_t *ws_frame
 ) {
   if (ws_frame->type != HTTPD_WS_TYPE_TEXT) {
     ESP_LOGI(TAG, "ignoring non-text frame");
-    return ESP_OK;
+    return NULL;
   }
 
   cJSON *json =
       cJSON_ParseWithLength((const char *)ws_frame->payload, ws_frame->len);
   if (!json) {
-    ESP_LOGE(TAG, "could not parse cJSON");
-    return ESP_FAIL;
+    ESP_LOGE(TAG, "could not parse json");
+    return NULL;
   }
+  return json;
+}
 
-  esp_err_t ret = ESP_OK;
-  const char *type = cJSON_GetObjectItem(json, "type")->valuestring;
-
-  if (!strcmp(type, "START_AP_SCAN")) {
+static esp_err_t dmxbox_ws_handle_request(
+    dmxbox_ws_session_t *session,
+    const char *type,
+    const cJSON *json
+) {
+  if (!strcmp(type, "settings/startApScan")) {
+    ESP_LOGI(TAG, "starting AP scan");
     session->scan_aps = true;
-    ESP_GOTO_ON_ERROR(
-        dmxbox_wifi_scan_start(),
-        exit,
-        TAG,
-        "failed to start scan"
-    );
-  } else if (!strcmp(type, "STOP_AP_SCAN")) {
+    ESP_RETURN_ON_ERROR(dmxbox_wifi_scan_start(), TAG, "failed to start scan");
+  } else if (!strcmp(type, "settings/stopApScan")) {
+    ESP_LOGI(TAG, "stopping AP scan");
     session->scan_aps = false;
   } else {
     ESP_LOGE(TAG, "unknown message type %s", type);
   }
-
-exit:
-  cJSON_Delete(json);
-  return ret;
+  return ESP_OK;
 }
 
 static esp_err_t dmxbox_ws_handler(httpd_req_t *req) {
@@ -156,8 +166,16 @@ static esp_err_t dmxbox_ws_handler(httpd_req_t *req) {
       "failed to receive frame"
   );
 
-  ESP_LOGI(TAG, "received %d byte frame", ws_frame.len);
-  return dmxbox_ws_parse_frame(session, &ws_frame);
+  ESP_LOGI(TAG, "received %d-byte frame", ws_frame.len);
+  cJSON *json = dmxbox_ws_frame_to_json(session, &ws_frame);
+  if (!json) {
+    return ESP_OK;
+  }
+  const cJSON *type_json = cJSON_GetObjectItemCaseSensitive(json, "type");
+  const char *type = cJSON_GetStringValue(type_json);
+  dmxbox_ws_handle_request(session, type, json);
+  cJSON_Delete(json);
+  return ESP_OK;
 }
 
 esp_err_t dmxbox_ws_register(httpd_handle_t server) {

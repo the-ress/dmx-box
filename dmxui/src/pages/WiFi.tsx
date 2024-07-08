@@ -1,33 +1,38 @@
 import WiFiForm from './WiFi/WiFiForm'
 import { wrapPromise } from '../helpers/wrapPromise.ts'
-import { Suspense, useEffect, useState } from 'react'
-import { loadWiFiConfig, submitWiFiConfig } from '../api/wifi'
+import { Suspense, useContext, useEffect, useState } from 'react'
+import { startApScan, stopApScan } from '../api/wifi'
 import { apiModelFromFields, apiModelToFields } from './WiFi/api.ts'
 import { WiFiFields } from './WiFi/schema.ts'
-import { SendJsonMessage, LastMessage } from 'react-use-websocket'
+import { ApiContext, ApiWsResponse } from '../api/index.ts'
 
-export interface WiFiPageProps {
-  apiUrl: URL
-  sendJsonMessage: SendJsonMessage
-  lastMessage: LastMessage
+function processWsResponse<Type extends ApiWsResponse['type']>(
+  type: Type,
+  effect: (response: Extract<ApiWsResponse, { type: Type }>) => void
+): void {
+  const { lastWsResponse } = useContext(ApiContext)
+  useEffect(() => {
+    if (lastWsResponse && lastWsResponse.type === type) {
+      effect(lastWsResponse as Extract<ApiWsResponse, { type: Type }>)
+    }
+  }, [lastWsResponse])
 }
 
-export default function WiFiPage({ apiUrl, lastMessage, sendJsonMessage }: WiFiPageProps) {
-  const load = wrapPromise(loadWiFiConfig(apiUrl).then(apiModelToFields))
+export default function WiFiPage() {
+  const { sendWsRequest, fetchSettings, submitSettings } = useContext(ApiContext)
+  const load = wrapPromise(fetchSettings().then(apiModelToFields))
   const submit = async (fields: WiFiFields) => {
     const model = apiModelFromFields(fields);
-    await submitWiFiConfig(apiUrl, model);
+    await submitSettings(model);
   }
   const [accessPoints, setAccessPoints] = useState<string[]>([])
+  processWsResponse('settings/apFound', apFound => {
+    setAccessPoints((prev) => prev.concat(apFound.ssid))
+  })
   useEffect(() => {
-    sendJsonMessage({ type: 'START_AP_SCAN' })
-    return () => sendJsonMessage({ type: 'STOP_AP_SCAN' })
-  }, [sendJsonMessage])
-  useEffect(() => {
-    if (lastMessage) {
-      setAccessPoints((prev) => prev.concat(lastMessage.data))
-    }
-  }, [lastMessage])
+    sendWsRequest(startApScan())
+    return () => sendWsRequest(stopApScan())
+  }, [sendWsRequest])
   return (
     <div>
       <Suspense fallback={<div>Loading</div>}>

@@ -1,17 +1,15 @@
-import useWebSocket from "react-use-websocket";
-import WiFiPage from "./pages/WiFi";
+import WiFiPage from "./pages/WiFi"
+import { createApi, ApiContext } from "./api"
 
-const apiUrl = new URL('/api/',
-  window.location.hash ? window.location.hash.substring(1) : window.origin
-)
-const wsUrl = new URL('ws', apiUrl)
-wsUrl.protocol = wsUrl.protocol.replace(/^http/, 'ws')
+export interface AppProps {
+  serverUrl: URL
+}
 
-export default function App() {
-  const { sendJsonMessage, lastMessage } = useWebSocket(wsUrl)
-  return <WiFiPage
-    sendJsonMessage={sendJsonMessage}
-    lastMessage={lastMessage}
-    apiUrl={apiUrl}
-  />
+export default function App({ serverUrl }: AppProps) {
+  const api = createApi(serverUrl)
+  return (
+    <ApiContext.Provider value={api}>
+      <WiFiPage />
+    </ApiContext.Provider>
+  )
 }

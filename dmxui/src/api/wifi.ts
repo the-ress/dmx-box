@@ -42,3 +42,19 @@ export async function submitWiFiConfig(baseUrl: URL, model: ApiModel): Promise<v
     throw await response.text()
   }
 }
+
+export const startApScan = () => ({ type: 'settings/startApScan' } as const)
+export const stopApScan = () => ({ type: 'settings/stopApScan' } as const)
+
+export interface ApFound {
+  type: 'settings/apFound'
+  ssid: string
+  mac: string
+}
+
+export type SettingsWsRequest =
+  | ReturnType<typeof startApScan>
+  | ReturnType<typeof stopApScan>
+
+export type SettingsWsResponse =
+  | ApFound
