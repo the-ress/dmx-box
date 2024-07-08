@@ -24,7 +24,7 @@ export interface ApiModel {
   }
 }
 
-export async function loadWiFiConfig(baseUrl: URL): Promise<ApiModel> {
+export async function getWiFiConfig(baseUrl: URL): Promise<ApiModel> {
   const response = await fetch(new URL('wifi-config', baseUrl))
   if (!response.ok) {
     throw await response.text()
@@ -33,7 +33,7 @@ export async function loadWiFiConfig(baseUrl: URL): Promise<ApiModel> {
   return model
 }
 
-export async function submitWiFiConfig(baseUrl: URL, model: ApiModel): Promise<void> {
+export async function putWiFiConfig(baseUrl: URL, model: ApiModel): Promise<void> {
   const response = await fetch(new URL('wifi-config', baseUrl), {
     method: 'PUT',
     body: JSON.stringify(model)
@@ -43,8 +43,8 @@ export async function submitWiFiConfig(baseUrl: URL, model: ApiModel): Promise<v
   }
 }
 
-export const startApScan = () => ({ type: 'settings/startApScan' } as const)
-export const stopApScan = () => ({ type: 'settings/stopApScan' } as const)
+export const startApScan = { type: 'settings/startApScan' } as const
+export const stopApScan = { type: 'settings/stopApScan' } as const
 
 export interface ApFound {
   type: 'settings/apFound'
@@ -53,8 +53,8 @@ export interface ApFound {
 }
 
 export type SettingsWsRequest =
-  | ReturnType<typeof startApScan>
-  | ReturnType<typeof stopApScan>
+  | typeof startApScan
+  | typeof stopApScan
 
 export type SettingsWsResponse =
   | ApFound

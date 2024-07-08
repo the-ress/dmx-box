@@ -8,11 +8,11 @@ import { FormProvider, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 export interface WiFiFormProps {
-  onLoad: () => WiFiFields
+  fields: WiFiFields
   onSubmit: (fields: WiFiFields) => void
 }
 
-export default function WiFiForm({ onLoad, onSubmit }: WiFiFormProps) {
+export default function WiFiForm({ fields, onSubmit }: WiFiFormProps) {
   const { t } = useTranslation('WiFi');
   const FieldNameJoinExistingEnabled = 'existingNetwork.enabled'
 
@@ -34,7 +34,7 @@ export default function WiFiForm({ onLoad, onSubmit }: WiFiFormProps) {
   ]
 
   const form = useForm<WiFiFields>({
-    defaultValues: onLoad(),
+    defaultValues: fields,
     resolver: zodResolver(WiFiSchema)
   })
 

@@ -1,4 +1,4 @@
-import { WiFiFields, WiFiSecurityType } from "./schema"
+import { WiFiChannel, WiFiFields, WiFiSecurityType } from "./schema"
 import { ApiModel, ApiAuthMode } from "../../api/wifi"
 
 function apiAuthModeToForm(authMode: ApiAuthMode): WiFiSecurityType {

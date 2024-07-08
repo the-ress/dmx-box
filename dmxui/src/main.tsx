@@ -6,6 +6,7 @@ import { StrictMode } from 'react'
 import en from './resources/en.json'
 import { makeZodI18nMap } from 'zod-i18n-map'
 import { z } from 'zod'
+import { ApiContext, createApi } from './api/index.ts'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
@@ -24,13 +25,17 @@ z.setErrorMap(
   })
 )
 
-const url = window.location.hash
-  ? window.location.hash.substring(1)
-  : window.origin
+const url = new URL(
+  window.location.hash
+    ? window.location.hash.substring(1)
+    : window.origin
+)
+
+const api = createApi(url)
 
 const root = ReactDOM.createRoot(rootElement)
 root.render(
-  <StrictMode>
-    <App serverUrl={new URL(url)} />
-  </StrictMode>
+  <ApiContext.Provider value={api}>
+    <App />
+  </ApiContext.Provider>
 )

@@ -1,19 +1,37 @@
 #!/bin/sh
+set -x
 command -v podman >/dev/null && DOCKER=podman
 
 : "${DOCKER:=docker}"
-: "${DMXBOX_DEVICE:=/dev/ttyUSB0}"
-: "${DMXBOX_MOUNTPOINT:=/home/ubuntu/project}"
+: "${CONTAINER:=dmxbox}"
+: "${DEVICE:=/dev/ttyUSB0}"
+: "${MOUNTPOINT:=/home/ubuntu/project}"
 
 CDPATH= cd -- "$(dirname -- "$0")"/..
-exec $DOCKER run \
-  --rm \
+
+if ! $DOCKER container exists $CONTAINER; then
+  $DOCKER container run \
+      --device "${DEVICE}" \
+      --detach \
+      --group-add keep-groups \
+      --name "${CONTAINER}" \
+      --userns keep-id \
+      --volume ".:${MOUNTPOINT}" \
+      --rm \
+      dmxbox \
+      /bin/tail -f /dev/null \
+  || exit 1
+fi
+
+CMD="${1:-/bin/zsh}"
+shift
+
+$DOCKER container exec \
   --interactive \
   --tty \
-  --volume ".:${DMXBOX_MOUNTPOINT}" \
-  --device "${DMXBOX_DEVICE}" \
-  --userns=keep-id \
-  --group-add keep-groups \
-  --workdir "${DMXBOX_MOUNTPOINT}" \
-  dmxbox
+  --workdir "${MOUNTPOINT}" \
+  $CONTAINER \
+  $CMD \
   "$@"
+
+

@@ -1,6 +1,6 @@
-import { createContext } from "react";
-import useWebSocket from "react-use-websocket"
-import { ApiModel, loadWiFiConfig, SettingsWsRequest, SettingsWsResponse, submitWiFiConfig } from "./wifi";
+import { createContext, useContext } from "react";
+import { SettingsWsRequest, SettingsWsResponse } from "./wifi";
+import useWebSocket from "react-use-websocket";
 
 export type ApiWsRequest =
   | SettingsWsRequest
@@ -10,11 +10,8 @@ export type ApiWsResponse =
   | { type: "foo" }
 
 export interface Api {
-  lastWsResponse?: ApiWsResponse
-  sendWsRequest(wsRequest: ApiWsRequest): void
-
-  fetchSettings(): Promise<ApiModel>
-  submitSettings(settings: ApiModel): Promise<void>
+  readonly apiUrl: URL
+  readonly wsUrl: string
 }
 
 export const ApiContext = createContext<Api>(undefined)
@@ -23,12 +20,15 @@ export function createApi(serverUrl: URL): Api {
   const apiUrl = new URL('api/', serverUrl)
   const wsUrl = new URL('ws', apiUrl)
   wsUrl.protocol = wsUrl.protocol.replace(/^http/, 'ws')
+  return { apiUrl, wsUrl: wsUrl.toString() }
+}
 
-  const ws = useWebSocket<ApiWsResponse>(wsUrl.toString())
-  return {
-    get lastWsResponse() { return ws.lastJsonMessage as ApiWsResponse },
-    sendWsRequest: ws.sendJsonMessage<ApiWsRequest>,
-    fetchSettings: loadWiFiConfig.bind(null, apiUrl),
-    submitSettings: submitWiFiConfig.bind(null, apiUrl),
-  }
+export function useDmxboxApi() {
+  const { apiUrl } = useContext(ApiContext)
+  return { apiUrl }
+}
+
+export function useDmxboxWebSocket() {
+  const { wsUrl } = useContext(ApiContext)
+  return useWebSocket<ApiWsResponse>(wsUrl, { share: true })
 }

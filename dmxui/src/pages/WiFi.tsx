@@ -1,44 +1,65 @@
 import WiFiForm from './WiFi/WiFiForm'
-import { wrapPromise } from '../helpers/wrapPromise.ts'
-import { Suspense, useContext, useEffect, useState } from 'react'
-import { startApScan, stopApScan } from '../api/wifi'
+import { ReactNode, useEffect, useState } from 'react'
+import { ApFound, getWiFiConfig, putWiFiConfig, startApScan, stopApScan } from '../api/wifi'
 import { apiModelFromFields, apiModelToFields } from './WiFi/api.ts'
 import { WiFiFields } from './WiFi/schema.ts'
-import { ApiContext, ApiWsResponse } from '../api/index.ts'
+import { ApiWsRequest, ApiWsResponse, useDmxboxApi, useDmxboxWebSocket } from '../api/index.ts'
 
-function processWsResponse<Type extends ApiWsResponse['type']>(
+function useLastWsResponse<Type extends ApiWsResponse['type']>(
   type: Type,
   effect: (response: Extract<ApiWsResponse, { type: Type }>) => void
 ): void {
-  const { lastWsResponse } = useContext(ApiContext)
+  const { lastJsonMessage } = useDmxboxWebSocket()
   useEffect(() => {
-    if (lastWsResponse && lastWsResponse.type === type) {
-      effect(lastWsResponse as Extract<ApiWsResponse, { type: Type }>)
+    if (lastJsonMessage?.type === type) {
+      effect(lastJsonMessage as Extract<ApiWsResponse, { type: Type }>)
     }
-  }, [lastWsResponse])
+  }, [lastJsonMessage])
+}
+
+export interface DmxboxWsSubscriptionProps {
+  start: ApiWsRequest
+  stop: ApiWsRequest
+  children: ReactNode
+}
+
+function DmxboxWsSubscription({ children, start, stop }: DmxboxWsSubscriptionProps) {
+  const { sendJsonMessage } = useDmxboxWebSocket()
+  useEffect(() => {
+    sendJsonMessage(start)
+    return () => sendJsonMessage(stop)
+  }, [start, stop])
+  return children;
 }
 
 export default function WiFiPage() {
-  const { sendWsRequest, fetchSettings, submitSettings } = useContext(ApiContext)
-  const load = wrapPromise(fetchSettings().then(apiModelToFields))
+  const { apiUrl } = useDmxboxApi()
+
+  const [accessPoints, setAccessPoints] = useState<ApFound[]>([])
+  const [fields, setFields] = useState(undefined)
+
   const submit = async (fields: WiFiFields) => {
     const model = apiModelFromFields(fields);
-    await submitSettings(model);
+    await putWiFiConfig(apiUrl, model);
   }
-  const [accessPoints, setAccessPoints] = useState<string[]>([])
-  processWsResponse('settings/apFound', apFound => {
-    setAccessPoints((prev) => prev.concat(apFound.ssid))
-  })
+
   useEffect(() => {
-    sendWsRequest(startApScan())
-    return () => sendWsRequest(stopApScan())
-  }, [sendWsRequest])
+    getWiFiConfig(apiUrl).then(apiModelToFields).then(setFields)
+  }, [apiUrl])
+
+  useLastWsResponse(
+    'settings/apFound',
+    ap => setAccessPoints(prev => prev.concat(ap))
+  )
+
   return (
-    <div>
-      <Suspense fallback={<div>Loading</div>}>
-        <WiFiForm onLoad={load} onSubmit={submit} />
-        {...accessPoints.map(ap => <div key={ap}>{ap}</div>)}
-      </Suspense>
-    </div>
+    <DmxboxWsSubscription start={startApScan} stop={stopApScan}>
+      {fields
+        ? <WiFiForm fields={fields} onSubmit={submit} />
+        : <div>Loading</div>
+      }
+      {...accessPoints.map(ap => <div key={ap.mac}>{ap.ssid}</div>)}
+    </DmxboxWsSubscription>
   )
 }
+
