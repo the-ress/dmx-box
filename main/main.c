@@ -17,7 +17,7 @@
 #include "recalc.h"
 #include "sdkconfig.h"
 #include "storage.h"
-#include "webserver/webserver.h"
+#include "dmxbox_httpd.h"
 #include "wifi.h"
 
 static const char *TAG = "main";

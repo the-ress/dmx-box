@@ -11,13 +11,6 @@ idf_component_register(
         "main.c"
         "recalc.c"
         "storage.c"
-        "webserver/api_config.c"
-        "webserver/api_cors.c"
-        "webserver/ui.c"
-        "webserver/webserver.c"
-        "webserver/ws.c"
-        "webserver/ws_ap_found.c"
-        "wifi.c"
-        "wifi_scan.c"
     INCLUDE_DIRS "."
+    REQUIRES dmxbox_httpd dmxbox_wifi esp_dmx esp32-button spiffs
 )

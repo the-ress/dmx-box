@@ -4,7 +4,7 @@
 
 #include "api_config.h"
 #include "ui.h"
-#include "webserver.h"
+#include "dmxbox_httpd.h"
 #include "ws.h"
 
 static const char *TAG = "dmxbox_webserver";
