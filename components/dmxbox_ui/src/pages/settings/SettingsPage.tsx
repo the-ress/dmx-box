@@ -1,11 +1,11 @@
-import WiFiForm from './WiFi/WiFiForm'
+import WiFiForm from './WiFiForm'
 import { useEffect, useState } from 'react'
-import { getWiFiConfig, putWiFiConfig } from '../api/wifi'
-import { apiModelFromFields, apiModelToFields } from './WiFi/api.ts'
-import { WiFiFields } from './WiFi/schema.ts'
-import { useApi } from '../api'
+import { getWiFiConfig, putWiFiConfig } from '../../api/wifi'
+import { apiModelFromFields, apiModelToFields } from './api'
+import { WiFiFields } from './schema'
+import { useApi } from '../../api'
 
-export default function WiFiPage() {
+export default function SettingsPage() {
   const { apiUrl } = useApi()
 
   const [fields, setFields] = useState(undefined)

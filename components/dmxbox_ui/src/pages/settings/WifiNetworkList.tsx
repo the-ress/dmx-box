@@ -30,7 +30,7 @@ export default function WifiNetworkList() {
     <WsSubscription start={startApScan} stop={stopApScan}>
       {...networks.map(net => (
         <div className="flex flex-row" key={net.ssid}>
-          <div className="grow">{net.ssid}</div>
+          <div className="grow py-2">{net.ssid}</div>
           <div className="flex-none">{rssiToIcon(net.rssi)}</div>
         </div>
       ))}

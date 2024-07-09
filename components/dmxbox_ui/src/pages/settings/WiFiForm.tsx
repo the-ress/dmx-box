@@ -100,7 +100,7 @@ export default function WiFiForm({ fields, onSubmit }: WiFiFormProps) {
           />
         </div>
 
-        <div hidden={!joinExisting}>
+        {joinExisting && <>
           <WifiNetworkList />
           <FormRowInput
             label={t('WiFi:existingNetwork.name')}
@@ -108,13 +108,12 @@ export default function WiFiForm({ fields, onSubmit }: WiFiFormProps) {
             placeholder={t('WiFi:existingNetwork.name.placeholder')}
             type="text"
           />
-
           <WiFiSecurity
             name="existingNetwork.security"
             noneComment={t('WiFi:existingNetwork.security.noneComment')}
             insecureComment={t('WiFi:existingNetwork.security.insecureComment')}
           />
-        </div>
+        </>}
 
       </form>
     </FormProvider>
