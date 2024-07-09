@@ -4,6 +4,7 @@
   "source": "src/index.html",
   "scripts": {
     "clean": "rimraf .parcel-cache dist",
+    "cleanstart": "npm run clean && npm start",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "parcel -p 8000",
     "build": "parcel build",

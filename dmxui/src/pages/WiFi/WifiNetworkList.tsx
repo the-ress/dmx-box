@@ -1,24 +1,26 @@
-import { useReducer } from 'react'
+import { JSX, useReducer } from 'react'
 import WsSubscription from '../../components/WsSubscription'
 import { useLastWsResponse } from '../../api'
 import { ApFound, startApScan, stopApScan } from '../../api/wifi'
+import { BsWifi, BsWifi1, BsWifi2 } from 'react-icons/bs'
 
-interface WiFiNetwork {
-  name: string
-  signalStrength: number
+function rssiToIcon(rssi: number): JSX.Element {
+  if (rssi > -60) {
+    return <BsWifi />
+  } else if (rssi > -80) {
+    return <BsWifi2 />
+  } else {
+    return <BsWifi1 />
+  }
 }
 
-function networksReducer(networks: WiFiNetwork[], ap: ApFound): WiFiNetwork[] {
-  const map = new Map(networks.map(n => [n.name, n]))
+function networksReducer(networks: ApFound[], ap: ApFound): ApFound[] {
+  const map = new Map(networks.map(n => [n.ssid, n]))
   const existing = map.get(ap.ssid)
-  if (existing) {
-    if (ap.rssi > existing.signalStrength) {
-      existing.signalStrength = ap.rssi
-    }
-  } else {
-    map.set(ap.ssid, { name: ap.ssid, signalStrength: ap.rssi })
+  if (!existing || existing.rssi < ap.rssi) {
+    map.set(ap.ssid, ap)
   }
-  return [...map.values()].sort(n => n.signalStrength)
+  return [...map.values()].sort(n => n.rssi)
 }
 
 export default function WifiNetworkList() {
@@ -27,7 +29,10 @@ export default function WifiNetworkList() {
   return (
     <WsSubscription start={startApScan} stop={stopApScan}>
       {...networks.map(net => (
-        <div key={net.name}>{net.name} ({net.signalStrength} dBm)</div>
+        <div className="flex flex-row" key={net.ssid}>
+          <div className="grow">{net.ssid}</div>
+          <div className="flex-none">{rssiToIcon(net.rssi)}</div>
+        </div>
       ))}
     </WsSubscription>
   )
