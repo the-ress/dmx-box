@@ -50,6 +50,7 @@ export interface ApFound {
   type: 'settings/apFound'
   ssid: string
   mac: string
+  rssi: number
 }
 
 export type SettingsWsRequest =

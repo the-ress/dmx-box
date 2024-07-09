@@ -1,5 +1,6 @@
 import { MaxHostNameLength, MaxNetworkNameLength, WiFiChannel, WiFiFields, WiFiSchema } from "./schema"
 import WiFiSecurity from "./WiFiSecurity"
+import WifiNetworkList from "./WifiNetworkList"
 import FormHeader from "../../components/FormHeader"
 import FormRowInput from "../../components/FormRowInput"
 import FormRowSelect from "../../components/FormRowSelect"
@@ -100,6 +101,7 @@ export default function WiFiForm({ fields, onSubmit }: WiFiFormProps) {
         </div>
 
         <div hidden={!joinExisting}>
+          <WifiNetworkList />
           <FormRowInput
             label={t('WiFi:existingNetwork.name')}
             name="existingNetwork.name"

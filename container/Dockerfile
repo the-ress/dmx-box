@@ -30,5 +30,6 @@ RUN : \
   && export NVM_DIR="$HOME/.config/nvm" \
   && \. "$NVM_DIR/nvm.sh" \
   && nvm install 20 \
+  && npm install --global typescript-language-server \
   && :
 
