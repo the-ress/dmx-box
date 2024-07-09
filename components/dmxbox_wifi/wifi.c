@@ -11,10 +11,9 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#include "const.h"
 #include "dmxbox_led.h"
 #include "sdkconfig.h"
-#include "storage.h"
+#include "dmxbox_storage.h"
 #include "wifi.h"
 #include "wifi_scan.h"
 

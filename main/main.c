@@ -1,23 +1,23 @@
-#include "esp_dmx.h"
-#include "esp_log.h"
-#include "esp_spiffs.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "nvs_flash.h"
+#include <esp_dmx.h>
+#include <esp_log.h>
+#include <esp_spiffs.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <nvs_flash.h>
 #include <string.h>
 
 #include "artnet/artnet.h"
 #include "const.h"
 #include "dmx/dmx_receive.h"
 #include "dmx/dmx_send.h"
+#include "dmxbox_httpd.h"
+#include "dmxbox_led.h"
+#include "dmxbox_storage.h"
 #include "dns.h"
 #include "effects/effects.h"
 #include "factory_reset.h"
-#include "dmxbox_led.h"
 #include "recalc.h"
 #include "sdkconfig.h"
-#include "storage.h"
-#include "dmxbox_httpd.h"
 #include "wifi.h"
 
 static const char *TAG = "main";
@@ -25,12 +25,10 @@ static const char *TAG = "main";
 #define CONFIG_RECALC_PERIOD 100
 
 esp_err_t init_fs(void) {
-  esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/www",
-      .partition_label = NULL,
-      .max_files = 5,
-      .format_if_mount_failed = false
-  };
+  esp_vfs_spiffs_conf_t conf = {.base_path = "/www",
+                                .partition_label = NULL,
+                                .max_files = 5,
+                                .format_if_mount_failed = false};
   esp_err_t ret = esp_vfs_spiffs_register(&conf);
 
   if (ret != ESP_OK) {
@@ -46,12 +44,9 @@ esp_err_t init_fs(void) {
 
   size_t total = 0, used = 0;
   ret = esp_spiffs_info(NULL, &total, &used);
-  if (ret != ESP_OK){
-    ESP_LOGE(
-        TAG,
-        "Failed to get SPIFFS partition information (%s)",
-        esp_err_to_name(ret)
-    );
+  if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)",
+             esp_err_to_name(ret));
   } else {
     ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
   }

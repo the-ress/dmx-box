@@ -13,7 +13,7 @@
 #include "const.h"
 #include "effects.h"
 #include "hashmap.h"
-#include "storage.h"
+#include "dmxbox_storage.h"
 
 static const char *TAG = "effects";
 

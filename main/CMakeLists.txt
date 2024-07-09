@@ -9,11 +9,11 @@ idf_component_register(
         "hashmap.c"
         "main.c"
         "recalc.c"
-        "storage.c"
-    INCLUDE_DIRS "."
+    INCLUDE_DIRS .
     REQUIRES 
       dmxbox_httpd
       dmxbox_led
+      dmxbox_storage
       dmxbox_wifi
       esp32-button
       esp_dmx

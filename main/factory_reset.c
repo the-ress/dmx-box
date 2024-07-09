@@ -1,8 +1,8 @@
 #include "const.h"
 #include "dmxbox_led.h"
-#include "esp_log.h"
-#include "storage.h"
+#include "dmxbox_storage.h"
 #include <driver/gpio.h>
+#include <esp_log.h>
 
 static const char *TAG = "factory_reset";
 

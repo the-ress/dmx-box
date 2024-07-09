@@ -1,6 +1,6 @@
 #include "api_config.h"
 #include "api_cors.h"
-#include "storage.h"
+#include "dmxbox_storage.h"
 #include "wifi.h"
 #include <cJSON.h>
 #include <esp_check.h>
@@ -10,14 +10,9 @@ static const char TAG[] = "dmxbox_api_config";
 
 static const char *auth_mode_to_string(wifi_auth_mode_t auth_mode) {
   static const char *strings[] = {
-      "open",
-      "WEP",
-      "WPA_PSK",
-      "WPA2_PSK",
-      "WPA_WPA2_PSK",
+      "open",     "WEP",           "WPA_PSK", "WPA2_PSK", "WPA_WPA2_PSK",
       "", // WPA2_ENTERPRISE
-      "WPA3_PSK",
-      "WPA2_WPA3_PSK",
+      "WPA3_PSK", "WPA2_WPA3_PSK",
   };
   if (auth_mode >= 0 && auth_mode < (sizeof(strings) / sizeof(strings[0]))) {
     return strings[auth_mode];
@@ -53,11 +48,8 @@ static wifi_auth_mode_t string_to_auth_mode(char *str) {
 
 static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
   ESP_LOGI(TAG, "GET request for %s", req->uri);
-  ESP_RETURN_ON_ERROR(
-      httpd_resp_set_type(req, "application/json"),
-      TAG,
-      "failed to set response content type"
-  );
+  ESP_RETURN_ON_ERROR(httpd_resp_set_type(req, "application/json"), TAG,
+                      "failed to set response content type");
   dmxbox_api_cors_allow_origin(req);
 
   bool sta_mode_enabled = dmxbox_get_sta_mode_enabled();
@@ -70,11 +62,8 @@ static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
 
   cJSON_AddStringToObject(ap, "ssid", dmxbox_wifi_config.ap.ssid);
   cJSON_AddStringToObject(ap, "password", dmxbox_wifi_config.ap.password);
-  cJSON_AddStringToObject(
-      ap,
-      "auth_mode",
-      auth_mode_to_string(dmxbox_wifi_config.ap.auth_mode)
-  );
+  cJSON_AddStringToObject(ap, "auth_mode",
+                          auth_mode_to_string(dmxbox_wifi_config.ap.auth_mode));
   cJSON_AddNumberToObject(ap, "channel", dmxbox_wifi_config.ap.channel);
 
   cJSON_AddBoolToObject(sta, "enabled", sta_mode_enabled);
@@ -82,10 +71,7 @@ static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
   cJSON_AddStringToObject(sta, "ssid", dmxbox_wifi_config.sta.ssid);
   cJSON_AddStringToObject(sta, "password", dmxbox_wifi_config.sta.password);
   cJSON_AddStringToObject(
-      sta,
-      "auth_mode",
-      auth_mode_to_string(dmxbox_wifi_config.sta.auth_mode)
-  );
+      sta, "auth_mode", auth_mode_to_string(dmxbox_wifi_config.sta.auth_mode));
 
   const char *result = cJSON_Print(root);
   httpd_resp_sendstr(req, result);
@@ -108,11 +94,8 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   while (cur_len < total_len) {
     received = httpd_req_recv(req, scratch + cur_len, total_len);
     if (received <= 0) {
-      httpd_resp_send_err(
-          req,
-          HTTPD_408_REQ_TIMEOUT,
-          "Failed to receive request"
-      );
+      httpd_resp_send_err(req, HTTPD_408_REQ_TIMEOUT,
+                          "Failed to receive request");
       return ESP_OK;
     }
     cur_len += received;
@@ -142,21 +125,12 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   ESP_LOGI(
       TAG,
       "Got ap values: ssid = %s, pw = %s, auth_mode = %s (%d), channel = %d",
-      ap_ssid,
-      ap_password,
-      ap_auth_mode_string,
-      ap_auth_mode,
-      ap_channel
-  );
+      ap_ssid, ap_password, ap_auth_mode_string, ap_auth_mode, ap_channel);
   ESP_LOGI(
       TAG,
       "Got sta values: enabled = %d, ssid = %s, pw = %s, auth_mode = %s (%d)",
-      sta_mode_enabled,
-      sta_ssid,
-      sta_password,
-      sta_auth_mode_string,
-      sta_auth_mode
-  );
+      sta_mode_enabled, sta_ssid, sta_password, sta_auth_mode_string,
+      sta_auth_mode);
 
   if (!dmxbox_set_hostname(hostname)) {
     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Hostname too long");
@@ -170,11 +144,8 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   new_config.ap.channel = ap_channel;
 
   strlcpy(new_config.sta.ssid, sta_ssid, sizeof(new_config.sta.ssid));
-  strlcpy(
-      new_config.sta.password,
-      sta_password,
-      sizeof(new_config.sta.password)
-  );
+  strlcpy(new_config.sta.password, sta_password,
+          sizeof(new_config.sta.password));
   new_config.sta.auth_mode = sta_auth_mode;
 
   wifi_update_config(&new_config, sta_mode_enabled);
@@ -210,20 +181,11 @@ esp_err_t dmxbox_api_config_register(httpd_handle_t server) {
       .method = HTTP_OPTIONS,
       .handler = dmxbox_api_config_options,
   };
-  ESP_RETURN_ON_ERROR(
-      httpd_register_uri_handler(server, &get),
-      TAG,
-      "handler_config_get failed"
-  );
-  ESP_RETURN_ON_ERROR(
-      httpd_register_uri_handler(server, &put),
-      TAG,
-      "handler_config_put failed"
-  );
-  ESP_RETURN_ON_ERROR(
-      httpd_register_uri_handler(server, &options),
-      TAG,
-      "handler_config_options failed"
-  );
+  ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &get), TAG,
+                      "handler_config_get failed");
+  ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &put), TAG,
+                      "handler_config_put failed");
+  ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &options), TAG,
+                      "handler_config_options failed");
   return ESP_OK;
 }

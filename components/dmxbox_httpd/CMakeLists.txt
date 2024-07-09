@@ -12,6 +12,11 @@ idf_component_register(
     ws_ap_found.h
     webserver.c
   INCLUDE_DIRS include
-  REQUIRES json esp_http_server dmxbox_wifi vfs
+  REQUIRES 
+    dmxbox_storage
+    dmxbox_wifi
+    esp_http_server
+    json
+    vfs
 )
 
