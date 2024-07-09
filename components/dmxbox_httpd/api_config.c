@@ -1,9 +1,8 @@
 #include "api_config.h"
-#include "api/api_strings.h"
-#include "api_cors.h"
 #include "dmxbox_storage.h"
-#include "receive_json.h"
-#include "scratch.h"
+#include "private/api_strings.h"
+#include "private/cors.h"
+#include "private/receive_json.h"
 #include "wifi.h"
 #include <cJSON.h>
 #include <esp_check.h>

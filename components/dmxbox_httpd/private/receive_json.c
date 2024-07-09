@@ -1,11 +1,16 @@
 #include "receive_json.h"
-#include "esp_check.h"
-#include "esp_err.h"
-#include "esp_http_server.h"
-#include "scratch.h"
+#include "cJSON.h"
+#include <esp_check.h>
+#include <esp_err.h>
+#include <esp_http_server.h>
 #include <esp_log.h>
 
-static const char TAG[] = "dmxbox_httpd_request";
+#ifndef CONFIG_DMXBOX_HTTPD_SCRATCH_SIZE
+#define CONFIG_DMXBOX_HTTPD_SCRATCH_SIZE 10240
+#endif
+
+static const char TAG[] = "dmxbox_httpd_receive_json";
+static char dmxbox_httpd_scratch[CONFIG_DMXBOX_HTTPD_SCRATCH_SIZE];
 
 esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json) {
   if (!json) {
@@ -48,5 +53,17 @@ esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json) {
     return ESP_OK;
   }
 
+  return ESP_OK;
+}
+
+esp_err_t dmxbox_httpd_send_json(httpd_req_t *req, cJSON *json) {
+  if (!cJSON_PrintPreallocated(json, dmxbox_httpd_scratch,
+                               sizeof(dmxbox_httpd_scratch), false)) {
+    return ESP_ERR_INVALID_SIZE;
+  }
+  ESP_RETURN_ON_ERROR(httpd_resp_set_type(req, HTTPD_TYPE_JSON), TAG,
+                      "failed to set content type");
+  ESP_RETURN_ON_ERROR(httpd_resp_sendstr(req, dmxbox_httpd_scratch), TAG,
+                      "failed to send response");
   return ESP_OK;
 }

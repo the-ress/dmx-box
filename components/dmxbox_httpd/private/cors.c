@@ -1,4 +1,4 @@
-#include "api_cors.h"
+#include "cors.h"
 #include "sdkconfig.h"
 #include <esp_check.h>
 
@@ -9,7 +9,7 @@ static const char *dmxbox_api_cors_origin = CONFIG_CORS_ORIGIN;
 static const char *dmxbox_api_cors_origin = NULL;
 #endif
 
-static const char TAG[] = "dmxbox_api_cors";
+static const char TAG[] = "dmxbox_httpd_cors";
 
 esp_err_t dmxbox_api_cors_allow_origin(httpd_req_t *req) {
   if (dmxbox_api_cors_origin) {
