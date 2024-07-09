@@ -3,28 +3,16 @@ import { ReactNode, useEffect, useState } from 'react'
 import { ApFound, getWiFiConfig, putWiFiConfig, startApScan, stopApScan } from '../api/wifi'
 import { apiModelFromFields, apiModelToFields } from './WiFi/api.ts'
 import { WiFiFields } from './WiFi/schema.ts'
-import { ApiWsRequest, ApiWsResponse, useDmxboxApi, useDmxboxWebSocket } from '../api/index.ts'
+import { WsRequest, useLastWsResponse, useApi, useWs } from '../api'
 
-function useLastWsResponse<Type extends ApiWsResponse['type']>(
-  type: Type,
-  effect: (response: Extract<ApiWsResponse, { type: Type }>) => void
-): void {
-  const { lastJsonMessage } = useDmxboxWebSocket()
-  useEffect(() => {
-    if (lastJsonMessage?.type === type) {
-      effect(lastJsonMessage as Extract<ApiWsResponse, { type: Type }>)
-    }
-  }, [lastJsonMessage])
-}
-
-export interface DmxboxWsSubscriptionProps {
-  start: ApiWsRequest
-  stop: ApiWsRequest
+export interface WsSubscriptionProps {
+  start: WsRequest
+  stop: WsRequest
   children: ReactNode
 }
 
-function DmxboxWsSubscription({ children, start, stop }: DmxboxWsSubscriptionProps) {
-  const { sendJsonMessage } = useDmxboxWebSocket()
+function WsSubscription({ children, start, stop }: WsSubscriptionProps) {
+  const { sendJsonMessage } = useWs()
   useEffect(() => {
     sendJsonMessage(start)
     return () => sendJsonMessage(stop)
@@ -33,7 +21,7 @@ function DmxboxWsSubscription({ children, start, stop }: DmxboxWsSubscriptionPro
 }
 
 export default function WiFiPage() {
-  const { apiUrl } = useDmxboxApi()
+  const { apiUrl } = useApi()
 
   const [accessPoints, setAccessPoints] = useState<ApFound[]>([])
   const [fields, setFields] = useState(undefined)
@@ -53,13 +41,13 @@ export default function WiFiPage() {
   )
 
   return (
-    <DmxboxWsSubscription start={startApScan} stop={stopApScan}>
+    <WsSubscription start={startApScan} stop={stopApScan}>
       {fields
         ? <WiFiForm fields={fields} onSubmit={submit} />
         : <div>Loading</div>
       }
       {...accessPoints.map(ap => <div key={ap.mac}>{ap.ssid}</div>)}
-    </DmxboxWsSubscription>
+    </WsSubscription>
   )
 }
 

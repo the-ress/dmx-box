@@ -3,9 +3,6 @@ FROM dmxbox/espidf
 RUN : \
   && apt-get update \
   && apt-get install -y \
-    cmake \
-    clang \
-    clangd \
     eza \
     fzf \
     neovim \
@@ -14,6 +11,8 @@ RUN : \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/* \
   && sh -c "$(curl -fsLS https://starship.rs/install.sh)" -- --yes \
+  && $IDF_PATH/tools/idf_tools.py --non-interactive install esp-clang \
+  && rm -rf $IDF_TOOLS_PATH/dist \
   && :
 
 USER ubuntu
@@ -33,4 +32,3 @@ RUN : \
   && nvm install 20 \
   && :
 
-CMD [ "/bin/zsh" ]

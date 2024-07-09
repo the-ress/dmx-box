@@ -11,27 +11,22 @@ CDPATH= cd -- "$(dirname -- "$0")"/..
 
 if ! $DOCKER container exists $CONTAINER; then
   $DOCKER container run \
-      --device "${DEVICE}" \
       --detach \
+      --device "${DEVICE}" \
       --group-add keep-groups \
       --name "${CONTAINER}" \
+      --publish 8000:8000 \
+      --rm \
       --userns keep-id \
       --volume ".:${MOUNTPOINT}" \
-      --rm \
       dmxbox \
       /bin/tail -f /dev/null \
   || exit 1
 fi
-
-CMD="${1:-/bin/zsh}"
-shift
 
 $DOCKER container exec \
   --interactive \
   --tty \
   --workdir "${MOUNTPOINT}" \
   $CONTAINER \
-  $CMD \
-  "$@"
-
-
+  /bin/zsh -c '. /opt/esp/idf/export.sh && exec /bin/zsh'

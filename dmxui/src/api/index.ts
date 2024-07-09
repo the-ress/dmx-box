@@ -1,13 +1,12 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 import { SettingsWsRequest, SettingsWsResponse } from "./wifi";
 import useWebSocket from "react-use-websocket";
 
-export type ApiWsRequest =
+export type WsRequest =
   | SettingsWsRequest
 
-export type ApiWsResponse =
+export type WsResponse =
   | SettingsWsResponse
-  | { type: "foo" }
 
 export interface Api {
   readonly apiUrl: URL
@@ -23,12 +22,25 @@ export function createApi(serverUrl: URL): Api {
   return { apiUrl, wsUrl: wsUrl.toString() }
 }
 
-export function useDmxboxApi() {
+export function useApi() {
   const { apiUrl } = useContext(ApiContext)
   return { apiUrl }
 }
 
-export function useDmxboxWebSocket() {
+export function useWs() {
   const { wsUrl } = useContext(ApiContext)
-  return useWebSocket<ApiWsResponse>(wsUrl, { share: true })
+  return useWebSocket<WsResponse>(wsUrl, { share: true })
 }
+
+export function useLastWsResponse<Type extends WsResponse['type']>(
+  type: Type,
+  effect: (response: Extract<WsResponse, { type: Type }>) => void
+): void {
+  const { lastJsonMessage } = useWs()
+  useEffect(() => {
+    if (lastJsonMessage?.type === type) {
+      effect(lastJsonMessage as Extract<WsResponse, { type: Type }>)
+    }
+  }, [lastJsonMessage])
+}
+
