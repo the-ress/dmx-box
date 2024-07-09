@@ -2,6 +2,7 @@
 #include "api/api_strings.h"
 #include "api_cors.h"
 #include "dmxbox_storage.h"
+#include "receive_json.h"
 #include "scratch.h"
 #include "wifi.h"
 #include <cJSON.h>
@@ -49,25 +50,10 @@ static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
 static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   ESP_LOGI(TAG, "PUT request for %s", req->uri);
 
-  int total_len = req->content_len;
-  int cur_len = 0;
-  int received = 0;
-  if (total_len >= sizeof(dmxbox_httpd_scratch)) {
-    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Content too long");
-    return ESP_OK;
-  }
-  while (cur_len < total_len) {
-    received = httpd_req_recv(req, dmxbox_httpd_scratch + cur_len, total_len);
-    if (received <= 0) {
-      httpd_resp_send_err(req, HTTPD_408_REQ_TIMEOUT,
-                          "Failed to receive request");
-      return ESP_OK;
-    }
-    cur_len += received;
-  }
-  dmxbox_httpd_scratch[total_len] = '\0';
+  cJSON *root = NULL;
+  ESP_RETURN_ON_ERROR(dmxbox_httpd_receive_json(req, &root), TAG,
+                      "failed to receive json request");
 
-  cJSON *root = cJSON_Parse(dmxbox_httpd_scratch);
   cJSON *ap = cJSON_GetObjectItem(root, "ap");
   cJSON *sta = cJSON_GetObjectItem(root, "sta");
 

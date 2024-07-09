@@ -4,6 +4,7 @@ idf_component_register(
     api/settings_sta.c
     api_config.c
     api_cors.c
+    receive_json.c
     scratch.c
     ui.c
     ws.c
