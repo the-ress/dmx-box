@@ -12,7 +12,7 @@
 #include "lwip/sys.h"
 
 #include "const.h"
-#include "led.h"
+#include "dmxbox_led.h"
 #include "sdkconfig.h"
 #include "storage.h"
 #include "wifi.h"
@@ -46,7 +46,7 @@ dmxbox_wifi_config_t dmxbox_wifi_config = {
         },
 };
 
-EventGroupHandle_t dmxbox_wifi_event_group = {};
+EventGroupHandle_t dmxbox_wifi_event_group;
 
 static int retry_num = 0;
 static bool is_in_disconnect = false;
@@ -82,7 +82,7 @@ dmxbox_wifi_on_ap_staconnected(const wifi_event_ap_staconnected_t *event) {
       event->aid
   );
 
-  dmxbox_led_set_state(AP_MODE_LED_GPIO, 1);
+  dmxbox_led_set(dmxbox_led_ap, 1);
 
   xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_sta_connected);
 }
@@ -100,13 +100,13 @@ dmxbox_wifi_on_ap_stadisconnected(wifi_event_ap_stadisconnected_t *event) {
   esp_wifi_ap_get_sta_list(&sta_list);
 
   ESP_LOGI(TAG, "%d stations remain connected ", sta_list.num);
-  dmxbox_led_set_state(AP_MODE_LED_GPIO, sta_list.num != 0);
+  dmxbox_led_set(dmxbox_led_ap, sta_list.num != 0);
 }
 
 static void dmxbox_wifi_on_sta_disconnected() {
   ESP_LOGI(TAG, "STA disconnected");
 
-  dmxbox_led_set_state(CLIENT_MODE_LED_GPIO, 0);
+  dmxbox_led_set(dmxbox_led_sta, 0);
   xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
   xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_disconnected);
 
@@ -132,7 +132,7 @@ static void dmxbox_wifi_on_sta_disconnected() {
 }
 
 static void dmxbox_wifi_on_sta_got_ip(const ip_event_got_ip_t *event) {
-  dmxbox_led_set_state(CLIENT_MODE_LED_GPIO, 1);
+  dmxbox_led_set(dmxbox_led_sta, 1);
 
   ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
   retry_num = 0;

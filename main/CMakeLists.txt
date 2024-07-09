@@ -7,10 +7,15 @@ idf_component_register(
         "effects/effects.c"
         "factory_reset.c"
         "hashmap.c"
-        "led.c"
         "main.c"
         "recalc.c"
         "storage.c"
     INCLUDE_DIRS "."
-    REQUIRES dmxbox_httpd dmxbox_wifi esp_dmx esp32-button spiffs
+    REQUIRES 
+      dmxbox_httpd
+      dmxbox_led
+      dmxbox_wifi
+      esp32-button
+      esp_dmx
+      spiffs
 )

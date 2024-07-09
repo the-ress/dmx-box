@@ -13,7 +13,7 @@
 #include "dns.h"
 #include "effects/effects.h"
 #include "factory_reset.h"
-#include "led.h"
+#include "dmxbox_led.h"
 #include "recalc.h"
 #include "sdkconfig.h"
 #include "storage.h"
@@ -46,7 +46,7 @@ esp_err_t init_fs(void) {
 
   size_t total = 0, used = 0;
   ret = esp_spiffs_info(NULL, &total, &used);
-  if (ret != ESP_OK) {
+  if (ret != ESP_OK){
     ESP_LOGE(
         TAG,
         "Failed to get SPIFFS partition information (%s)",
@@ -61,11 +61,11 @@ esp_err_t init_fs(void) {
 void app_main(void) {
   ESP_LOGI(TAG, "App starting...");
 
-  dmxbox_configure_leds();
+  dmxbox_led_start();
 
   dmxbox_handle_factory_reset();
 
-  ESP_ERROR_CHECK(dmxbox_led_set_state(POWER_LED_GPIO, 1));
+  ESP_ERROR_CHECK(dmxbox_led_set(dmxbox_led_power, 1));
 
   dmxbox_storage_init();
   dmxbox_wifi_start();

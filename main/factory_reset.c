@@ -1,8 +1,8 @@
-#include "esp_log.h"
-
 #include "const.h"
-#include "led.h"
+#include "dmxbox_led.h"
+#include "esp_log.h"
 #include "storage.h"
+#include <driver/gpio.h>
 
 static const char *TAG = "factory_reset";
 
@@ -17,7 +17,7 @@ bool is_reset_button_pressed() { return !gpio_get_level(RESET_BUTTON_GPIO); }
 
 bool blink_and_wait(int blink_interval, int wait_time) {
   for (int i = 0; i < wait_time / blink_interval; i++) {
-    ESP_ERROR_CHECK(dmxbox_led_set_state(POWER_LED_GPIO, pwr_led));
+    ESP_ERROR_CHECK(dmxbox_led_set(dmxbox_led_power, pwr_led));
     vTaskDelay(blink_interval / portTICK_PERIOD_MS);
     pwr_led = !pwr_led;
 
@@ -50,8 +50,7 @@ void dmxbox_handle_factory_reset(void) {
   ESP_LOGI(
       TAG,
       "reset button pressed during boot, waiting 10 seconds before factory "
-      "reset"
-  );
+      "reset");
 
   if (!blink_and_wait(250, 8000)) {
     return;

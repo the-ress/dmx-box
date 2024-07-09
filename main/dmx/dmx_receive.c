@@ -3,7 +3,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "led.h"
+#include "dmxbox_led.h"
 
 static const char *TAG = "dmx_receive";
 
@@ -46,7 +46,7 @@ static void handle_packet(const dmx_packet_t *packet_info) {
   if (!dmxbox_dmx_in_connected) {
     dmxbox_dmx_in_connected = true;
     ESP_LOGI(TAG, "DMX connected");
-    ESP_ERROR_CHECK(dmxbox_led_set_state(DMX_IN_LED_GPIO, 1));
+    ESP_ERROR_CHECK(dmxbox_led_set(dmxbox_led_dmx_in, 1));
   }
 
   // timer += event->duration;
@@ -64,7 +64,7 @@ static void handle_timeout(void) {
   if (dmxbox_dmx_in_connected) {
     dmxbox_dmx_in_connected = false;
     ESP_LOGI(TAG, "DMX connection lost");
-    ESP_ERROR_CHECK(dmxbox_led_set_state(DMX_IN_LED_GPIO, 0));
+    ESP_ERROR_CHECK(dmxbox_led_set(dmxbox_led_dmx_in, 0));
   }
 }
 

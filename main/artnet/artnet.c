@@ -12,7 +12,7 @@
 #include "artnet_const.h"
 #include "const.h"
 #include "hashmap.h"
-#include "led.h"
+#include "dmxbox_led.h"
 #include "wifi.h"
 #include <stdint.h>
 
@@ -619,7 +619,7 @@ static bool artnet_active = false;
 
 void dmxbox_set_artnet_active(bool state) {
   if (artnet_active != state) {
-    ESP_ERROR_CHECK(dmxbox_led_set_state(ARTNET_IN_LED_GPIO, state));
+    ESP_ERROR_CHECK(dmxbox_led_set(dmxbox_led_artnet_in, state));
     artnet_active = state;
   }
 }

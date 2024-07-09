@@ -3,7 +3,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "led.h"
+#include "dmxbox_led.h"
 
 #define DMX_SEND_PERIOD 30
 
@@ -75,7 +75,7 @@ static bool dmx_out_active = false;
 
 void dmxbox_set_dmx_out_active(bool state) {
   if (dmx_out_active != state) {
-    ESP_ERROR_CHECK(dmxbox_led_set_state(DMX_OUT_LED_GPIO, state));
+    ESP_ERROR_CHECK(dmxbox_led_set(dmxbox_led_dmx_out, state));
     dmx_out_active = state;
   }
 }
