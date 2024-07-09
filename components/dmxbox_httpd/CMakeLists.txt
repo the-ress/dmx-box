@@ -1,7 +1,10 @@
 idf_component_register(
   SRCS
+    api/api_strings.c
+    api/settings_sta.c
     api_config.c
     api_cors.c
+    scratch.c
     ui.c
     ws.c
     ws_ap_found.c

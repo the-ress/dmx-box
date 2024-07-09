@@ -1,17 +1,9 @@
 #include "ws_ap_found.h"
+#include "api/api_strings.h"
 #include <cJSON.h>
-#include <esp_mac.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-
-static cJSON *dmxbox_mac_to_json(const uint8_t *mac) {
-  char buffer[18];
-  if (snprintf(buffer, sizeof(buffer), MACSTR, MAC2STR(mac)) < sizeof(buffer)) {
-    return cJSON_CreateString(buffer);
-  }
-  return NULL;
-}
 
 char *dmxbox_ws_ap_found_create(const wifi_ap_record_t *record) {
   char *text = NULL;

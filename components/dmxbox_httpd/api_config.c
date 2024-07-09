@@ -1,50 +1,14 @@
 #include "api_config.h"
+#include "api/api_strings.h"
 #include "api_cors.h"
 #include "dmxbox_storage.h"
+#include "scratch.h"
 #include "wifi.h"
 #include <cJSON.h>
 #include <esp_check.h>
 #include <esp_log.h>
 
 static const char TAG[] = "dmxbox_api_config";
-
-static const char *auth_mode_to_string(wifi_auth_mode_t auth_mode) {
-  static const char *strings[] = {
-      "open",     "WEP",           "WPA_PSK", "WPA2_PSK", "WPA_WPA2_PSK",
-      "", // WPA2_ENTERPRISE
-      "WPA3_PSK", "WPA2_WPA3_PSK",
-  };
-  if (auth_mode >= 0 && auth_mode < (sizeof(strings) / sizeof(strings[0]))) {
-    return strings[auth_mode];
-  }
-  ESP_LOGE(TAG, "Unknown auth mode: %d", auth_mode);
-  return "";
-}
-
-static wifi_auth_mode_t string_to_auth_mode(char *str) {
-  if (strcmp(str, "open") == 0) {
-    return WIFI_AUTH_OPEN;
-  } else if (strcmp(str, "WEP") == 0) {
-    return WIFI_AUTH_WEP;
-  } else if (strcmp(str, "WPA_PSK") == 0) {
-    return WIFI_AUTH_WPA_PSK;
-  } else if (strcmp(str, "WPA2_PSK") == 0) {
-    return WIFI_AUTH_WPA2_PSK;
-  } else if (strcmp(str, "WPA_WPA2_PSK") == 0) {
-    return WIFI_AUTH_WPA_WPA2_PSK;
-  } else if (strcmp(str, "WPA2_ENTERPRISE") == 0) {
-    return WIFI_AUTH_WPA2_ENTERPRISE;
-  } else if (strcmp(str, "WPA3_PSK") == 0) {
-    return WIFI_AUTH_WPA3_PSK;
-  } else if (strcmp(str, "WPA2_WPA3_PSK") == 0) {
-    return WIFI_AUTH_WPA2_WPA3_PSK;
-  } else if (strcmp(str, "WAPI_PSK") == 0) {
-    return WIFI_AUTH_WAPI_PSK;
-  } else {
-    ESP_LOGE(TAG, "Unknown auth mode string: %s", str);
-    return WIFI_AUTH_WPA_WPA2_PSK;
-  }
-}
 
 static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
   ESP_LOGI(TAG, "GET request for %s", req->uri);
@@ -62,8 +26,9 @@ static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
 
   cJSON_AddStringToObject(ap, "ssid", dmxbox_wifi_config.ap.ssid);
   cJSON_AddStringToObject(ap, "password", dmxbox_wifi_config.ap.password);
-  cJSON_AddStringToObject(ap, "auth_mode",
-                          auth_mode_to_string(dmxbox_wifi_config.ap.auth_mode));
+  cJSON_AddStringToObject(
+      ap, "auth_mode",
+      dmxbox_auth_mode_to_str(dmxbox_wifi_config.ap.auth_mode));
   cJSON_AddNumberToObject(ap, "channel", dmxbox_wifi_config.ap.channel);
 
   cJSON_AddBoolToObject(sta, "enabled", sta_mode_enabled);
@@ -71,7 +36,8 @@ static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
   cJSON_AddStringToObject(sta, "ssid", dmxbox_wifi_config.sta.ssid);
   cJSON_AddStringToObject(sta, "password", dmxbox_wifi_config.sta.password);
   cJSON_AddStringToObject(
-      sta, "auth_mode", auth_mode_to_string(dmxbox_wifi_config.sta.auth_mode));
+      sta, "auth_mode",
+      dmxbox_auth_mode_to_str(dmxbox_wifi_config.sta.auth_mode));
 
   const char *result = cJSON_Print(root);
   httpd_resp_sendstr(req, result);
@@ -83,16 +49,15 @@ static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
 static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   ESP_LOGI(TAG, "PUT request for %s", req->uri);
 
-  static char scratch[10240];
   int total_len = req->content_len;
   int cur_len = 0;
   int received = 0;
-  if (total_len >= sizeof(scratch)) {
+  if (total_len >= sizeof(dmxbox_httpd_scratch)) {
     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Content too long");
     return ESP_OK;
   }
   while (cur_len < total_len) {
-    received = httpd_req_recv(req, scratch + cur_len, total_len);
+    received = httpd_req_recv(req, dmxbox_httpd_scratch + cur_len, total_len);
     if (received <= 0) {
       httpd_resp_send_err(req, HTTPD_408_REQ_TIMEOUT,
                           "Failed to receive request");
@@ -100,9 +65,9 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
     }
     cur_len += received;
   }
-  scratch[total_len] = '\0';
+  dmxbox_httpd_scratch[total_len] = '\0';
 
-  cJSON *root = cJSON_Parse(scratch);
+  cJSON *root = cJSON_Parse(dmxbox_httpd_scratch);
   cJSON *ap = cJSON_GetObjectItem(root, "ap");
   cJSON *sta = cJSON_GetObjectItem(root, "sta");
 
@@ -111,7 +76,11 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   char *ap_ssid = cJSON_GetObjectItem(ap, "ssid")->valuestring;
   char *ap_password = cJSON_GetObjectItem(ap, "password")->valuestring;
   char *ap_auth_mode_string = cJSON_GetObjectItem(ap, "auth_mode")->valuestring;
-  wifi_auth_mode_t ap_auth_mode = string_to_auth_mode(ap_auth_mode_string);
+
+  wifi_auth_mode_t ap_auth_mode;
+  ESP_RETURN_ON_ERROR(
+      dmxbox_auth_mode_from_str(ap_auth_mode_string, &ap_auth_mode), TAG,
+      "Could not parse ap auth mode: %s", ap_auth_mode_string);
   uint8_t ap_channel = (uint8_t)cJSON_GetObjectItem(ap, "channel")->valueint;
 
   bool sta_mode_enabled = cJSON_IsTrue(cJSON_GetObjectItem(sta, "enabled"));
@@ -119,7 +88,11 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   char *sta_password = cJSON_GetObjectItem(sta, "password")->valuestring;
   char *sta_auth_mode_string =
       cJSON_GetObjectItem(sta, "auth_mode")->valuestring;
-  wifi_auth_mode_t sta_auth_mode = string_to_auth_mode(sta_auth_mode_string);
+
+  wifi_auth_mode_t sta_auth_mode;
+  ESP_RETURN_ON_ERROR(
+      dmxbox_auth_mode_from_str(sta_auth_mode_string, &sta_auth_mode), TAG,
+      "Could not parse sta auth mode: %s", sta_auth_mode_string);
 
   ESP_LOGI(TAG, "Got ap hostname: '%s'", hostname);
   ESP_LOGI(
