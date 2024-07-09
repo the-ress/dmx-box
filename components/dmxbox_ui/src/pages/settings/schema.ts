@@ -10,6 +10,16 @@ export const MaxHostNameLength = 15
 export const MaxPasswordLength = 63
 export const MaxNetworkNameLength = 32
 
+export const WifiPasswordStringSchema = z.string()
+  .min(MinPasswordLength)
+  .max(MaxPasswordLength)
+
+export const WifiPasswordSchema = z.object({
+  password: WifiPasswordStringSchema
+})
+
+export type WifiPasswordFields = z.infer<typeof WifiPasswordSchema>
+
 export const WiFiSecuritySchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal(WiFiSecurityType.none),
@@ -17,7 +27,7 @@ export const WiFiSecuritySchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: WiFiSecurityTypeSchema.exclude([WiFiSecurityType.none]),
-    password: z.string().min(MinPasswordLength).max(MaxPasswordLength),
+    password: WifiPasswordStringSchema,
   }),
 ])
 

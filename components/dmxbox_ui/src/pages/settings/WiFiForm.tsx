@@ -44,79 +44,82 @@ export default function WiFiForm({ fields, onSubmit }: WiFiFormProps) {
     name: FieldNameJoinExistingEnabled
   })
 
+
   return (
-    <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex flex-row">
-          <h1 className="grow mb-4 text-3xl select-none">{t('WiFi:h1')}</h1>
-          <div className="grow-0">
-            <button type="submit">{t('WiFi:save')}</button>
+    <>
+      <FormProvider {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="flex flex-row">
+            <h1 className="grow mb-4 text-3xl select-none">{t('WiFi:h1')}</h1>
+            <div className="grow-0">
+              <button type="submit">{t('WiFi:save')}</button>
+            </div>
           </div>
-        </div>
 
-        <div className="mb-6">
-          <FormRowInput
-            label={t('WiFi:hostName')}
-            maxLength={MaxHostNameLength}
-            name="hostName"
-            placeholder={t('WiFi:hostName.placeholder')}
-            type="text"
-          />
-        </div>
+          <div className="mb-6">
+            <FormRowInput
+              label={t('WiFi:hostName')}
+              maxLength={MaxHostNameLength}
+              name="hostName"
+              placeholder={t('WiFi:hostName.placeholder')}
+              type="text"
+            />
+          </div>
 
-        <FormHeader
-          heading={t('WiFi:accessPoint.heading')}
-          subHeading={t('WiFi:accessPoint.subheading')}
-        />
-
-        <FormRowInput
-          label={t('WiFi:accessPoint.name')}
-          maxLength={MaxNetworkNameLength}
-          name="accessPoint.name"
-          placeholder={t('WiFi:accessPoint.name.placeholder')}
-          type="text"
-        />
-
-        <WiFiSecurity
-          name="accessPoint.security"
-          noneComment={t('WiFi:accessPoint.security.noneComment')}
-          insecureComment={t('WiFi:accessPoint.security.insecureComment')}
-        />
-
-        <FormRowSelect
-          comment={joinExisting && t('WiFi:accessPoint.channel.joinedComment')}
-          defaultValue={WiFiChannel.auto}
-          disabled={joinExisting}
-          label={t('WiFi:accessPoint.channel')}
-          name="accessPoint.channel"
-          options={WiFiChannelOptions}
-        />
-
-        <div className="mt-6">
           <FormHeader
-            checkboxName={FieldNameJoinExistingEnabled}
-            heading={t('WiFi:existingNetwork.heading')}
-            subHeading={t('WiFi:existingNetwork.subHeading')}
+            heading={t('WiFi:accessPoint.heading')}
+            subHeading={t('WiFi:accessPoint.subheading')}
           />
-        </div>
 
-        {joinExisting && <>
-          <WifiNetworkList />
           <FormRowInput
-            label={t('WiFi:existingNetwork.name')}
-            name="existingNetwork.name"
-            placeholder={t('WiFi:existingNetwork.name.placeholder')}
+            label={t('WiFi:accessPoint.name')}
+            maxLength={MaxNetworkNameLength}
+            name="accessPoint.name"
+            placeholder={t('WiFi:accessPoint.name.placeholder')}
             type="text"
           />
-          <WiFiSecurity
-            name="existingNetwork.security"
-            noneComment={t('WiFi:existingNetwork.security.noneComment')}
-            insecureComment={t('WiFi:existingNetwork.security.insecureComment')}
-          />
-        </>}
 
-      </form>
-    </FormProvider>
+          <WiFiSecurity
+            name="accessPoint.security"
+            noneComment={t('WiFi:accessPoint.security.noneComment')}
+            insecureComment={t('WiFi:accessPoint.security.insecureComment')}
+          />
+
+          <FormRowSelect
+            comment={joinExisting && t('WiFi:accessPoint.channel.joinedComment')}
+            defaultValue={WiFiChannel.auto}
+            disabled={joinExisting}
+            label={t('WiFi:accessPoint.channel')}
+            name="accessPoint.channel"
+            options={WiFiChannelOptions}
+          />
+
+          <div className="mt-6">
+            <FormHeader
+              checkboxName={FieldNameJoinExistingEnabled}
+              heading={t('WiFi:existingNetwork.heading')}
+              subHeading={t('WiFi:existingNetwork.subHeading')}
+            />
+          </div>
+
+          {joinExisting && <>
+            <FormRowInput
+              label={t('WiFi:existingNetwork.name')}
+              name="existingNetwork.name"
+              placeholder={t('WiFi:existingNetwork.name.placeholder')}
+              type="text"
+            />
+            <WiFiSecurity
+              name="existingNetwork.security"
+              noneComment={t('WiFi:existingNetwork.security.noneComment')}
+              insecureComment={t('WiFi:existingNetwork.security.insecureComment')}
+            />
+          </>}
+
+        </form>
+      </FormProvider>
+      <WifiNetworkList />
+    </>
   )
 }
 

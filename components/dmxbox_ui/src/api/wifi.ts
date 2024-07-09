@@ -1,3 +1,26 @@
+function put<T>(endpoint: string) {
+  return async (baseUrl: URL, model: T) => {
+    const response = await fetch(new URL(endpoint, baseUrl), {
+      method: 'PUT',
+      body: JSON.stringify(model)
+    })
+    if (!response.ok) {
+      throw await response.text()
+    }
+  }
+}
+
+function get<T>(endpoint: string) {
+  return async (baseUrl: URL): Promise<T> => {
+    const response = await fetch(new URL(endpoint, baseUrl))
+    if (!response.ok) {
+      throw await response.text()
+    }
+    const model = await response.json()
+    return model
+  }
+}
+
 
 export type ApiAuthMode =
   | 'open'
@@ -24,24 +47,17 @@ export interface ApiModel {
   }
 }
 
-export async function getWiFiConfig(baseUrl: URL): Promise<ApiModel> {
-  const response = await fetch(new URL('wifi-config', baseUrl))
-  if (!response.ok) {
-    throw await response.text()
-  }
-  const model = await response.json()
-  return model
+export interface PutStaModel {
+  enabled: boolean
+  ssid: string
+  authMode: ApiAuthMode
+  password: string
 }
 
-export async function putWiFiConfig(baseUrl: URL, model: ApiModel): Promise<void> {
-  const response = await fetch(new URL('wifi-config', baseUrl), {
-    method: 'PUT',
-    body: JSON.stringify(model)
-  })
-  if (!response.ok) {
-    throw await response.text()
-  }
-}
+export const getWiFiConfig = get<ApiModel>('wifi-config')
+
+export const putWiFiConfig = put<ApiModel>('wifi-config');
+export const putSta = put<PutStaModel>('settings/sta');
 
 export const startApScan = { type: 'settings/startApScan' } as const
 export const stopApScan = { type: 'settings/stopApScan' } as const
@@ -51,6 +67,7 @@ export interface ApFound {
   ssid: string
   mac: string
   rssi: number
+  authMode: ApiAuthMode
 }
 
 export type SettingsWsRequest =

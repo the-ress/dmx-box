@@ -16,11 +16,15 @@ static const char *strings[WIFI_AUTH_MAX] = {
     [WIFI_AUTH_WPA2_WPA3_PSK] = "WPA2_WPA3_PSK"};
 
 const char *dmxbox_auth_mode_to_str(wifi_auth_mode_t auth_mode) {
+  const char *result = "";
   if (auth_mode >= 0 && auth_mode < WIFI_AUTH_MAX) {
-    return strings[auth_mode];
+    result = strings[auth_mode];
   }
-  ESP_LOGE(TAG, "Unknown auth mode: %d", auth_mode);
-  return "";
+  if (!result[0]) {
+    ESP_LOGE(TAG, "Unsupported auth mode: %d", auth_mode);
+    return NULL;
+  }
+  return result;
 }
 
 bool dmxbox_auth_mode_from_str(const char *str, wifi_auth_mode_t *result) {

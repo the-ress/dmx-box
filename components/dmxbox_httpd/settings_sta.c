@@ -57,15 +57,15 @@ static esp_err_t dmxbox_api_settings_sta_put(httpd_req_t *req) {
       goto send;
     }
 
-    cJSON *auth_mode_str = cJSON_GetObjectItemCaseSensitive(json, "auth_mode");
+    cJSON *auth_mode_str = cJSON_GetObjectItemCaseSensitive(json, "authMode");
     if (!auth_mode_str || !cJSON_IsString(auth_mode_str)) {
-      ESP_LOGE(TAG, "auth_mode missing or not a string");
+      ESP_LOGE(TAG, "authMode missing or not a string");
       goto send;
     }
 
     wifi_auth_mode_t auth_mode;
     if (!dmxbox_auth_mode_from_str(auth_mode_str->valuestring, &auth_mode)) {
-      ESP_LOGE(TAG, "invalid auth_mode");
+      ESP_LOGE(TAG, "invalid authMode");
       goto send;
     }
 
