@@ -1,12 +1,13 @@
 import * as ReactDOM from 'react-dom/client'
-import App from './App.tsx'
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { StrictMode } from 'react'
 import en from './resources/en.json'
 import { makeZodI18nMap } from 'zod-i18n-map'
 import { z } from 'zod'
-import { ApiContext, createApi } from './api/index.ts'
+import App from './App'
+import SettingsPage from './pages/settings/SettingsPage.tsx'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
@@ -25,17 +26,19 @@ z.setErrorMap(
   })
 )
 
-const url = new URL(
-  window.location.hash
-    ? window.location.hash.substring(1)
-    : window.origin
-)
-
-const api = createApi(url)
+const router = createBrowserRouter([
+  {
+    path: '/',
+    Component: App,
+    children: [
+      { path: '/', Component: SettingsPage },
+    ],
+  },
+])
 
 const root = ReactDOM.createRoot(rootElement)
 root.render(
-  <ApiContext.Provider value={api}>
-    <App />
-  </ApiContext.Provider>
+  <StrictMode>
+    <RouterProvider router={router} />
+  </StrictMode>
 )

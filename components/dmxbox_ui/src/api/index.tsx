@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect } from "react";
+import { createContext, ReactNode, useContext, useEffect, ComponentType } from "react";
 import { SettingsWsRequest, SettingsWsResponse } from "./wifi";
 import useWebSocket from "react-use-websocket";
+import { useSearchParams } from "react-router-dom";
 
 export type WsRequest =
   | SettingsWsRequest
@@ -13,13 +14,28 @@ export interface Api {
   readonly wsUrl: string
 }
 
-export const ApiContext = createContext<Api>(undefined)
+const ApiContext = createContext<Api>(undefined)
 
-export function createApi(serverUrl: URL): Api {
-  const apiUrl = new URL('api/', serverUrl)
+function createApi(serverUrl?: URL): Api {
+  const apiUrl = new URL('api/', serverUrl ?? new URL('/'))
   const wsUrl = new URL('ws', apiUrl)
   wsUrl.protocol = wsUrl.protocol.replace(/^http/, 'ws')
   return { apiUrl, wsUrl: wsUrl.toString() }
+}
+
+export interface ApiProviderProps {
+  children: ReactNode
+}
+
+export function ApiProvider({ children }: ApiProviderProps) {
+  const [searchParams] = useSearchParams()
+  const serverUrl = searchParams.get('dmxbox')
+  const api = createApi(serverUrl && new URL(serverUrl))
+  return (
+    <ApiContext.Provider value={api}>
+      {children}
+    </ApiContext.Provider>
+  )
 }
 
 export function useApi() {
