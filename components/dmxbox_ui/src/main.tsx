@@ -7,7 +7,7 @@ import { makeZodI18nMap } from 'zod-i18n-map'
 import { z } from 'zod'
 import App from './App'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import { MainPage, SettingsPage } from './pages'
+import { effectRoutes, MainPage, SettingsPage } from './pages'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
@@ -32,6 +32,7 @@ const router = createBrowserRouter([
     Component: App,
     children: [
       { path: '/', Component: MainPage },
+      ...effectRoutes('effects'),
       { path: 'settings', Component: SettingsPage },
     ],
   },
