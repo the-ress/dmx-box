@@ -6,10 +6,14 @@ interface DurationInputProps {
 }
 
 function DurationInput({ label, name }: DurationInputProps) {
-  return <Input
-    name={name}
-    placeholder={label}
-  />
+  return (
+    <div className="mx-1">
+      <Input
+        name={name}
+        placeholder={label}
+      />
+    </div>
+  )
 }
 
 export default function StepTimes() {
@@ -19,9 +23,6 @@ export default function StepTimes() {
       <DurationInput name="in" label="in" />
       <DurationInput name="dwell" label="dwell" />
       <DurationInput name="out" label="out" />
-    </div>
-    <div className="touch-pan-x overflow-x">
-      WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
     </div>
   </>
 }
