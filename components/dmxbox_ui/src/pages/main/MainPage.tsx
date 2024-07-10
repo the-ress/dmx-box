@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
+import LinkWithSearchParams from "../../components/LinkWithSearchParams";
 
 export default function MainPage() {
-  return <Link to="/settings">Settings</Link>
+  return <LinkWithSearchParams to="/settings">Settings</LinkWithSearchParams>
 }

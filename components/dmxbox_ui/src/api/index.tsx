@@ -17,7 +17,7 @@ export interface Api {
 const ApiContext = createContext<Api>(undefined)
 
 function createApi(serverUrl?: URL): Api {
-  const apiUrl = new URL('api/', serverUrl ?? new URL('/'))
+  const apiUrl = new URL('api/', serverUrl ?? new URL(window.origin))
   const wsUrl = new URL('ws', apiUrl)
   wsUrl.protocol = wsUrl.protocol.replace(/^http/, 'ws')
   return { apiUrl, wsUrl: wsUrl.toString() }
