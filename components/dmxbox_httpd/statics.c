@@ -1,4 +1,4 @@
-#include "ui.h"
+#include "statics.h"
 #include "esp_err.h"
 #include "esp_http_server.h"
 #include "private/scratch.h"
@@ -80,7 +80,7 @@ static int dmxbox_httpd_open_static_file(const char *filename) {
   return open(path, O_RDONLY, 0);
 }
 
-static esp_err_t dmxbox_ui_handler(httpd_req_t *req) {
+static esp_err_t dmxbox_httpd_statics_handler(httpd_req_t *req) {
   ESP_LOGI(TAG, "Handling GET %s", req->uri);
 
   esp_err_t ret = ESP_OK;
@@ -158,11 +158,11 @@ exit:
   return ret;
 }
 
-esp_err_t dmxbox_ui_register(httpd_handle_t server) {
+esp_err_t dmxbox_httpd_statics_register(httpd_handle_t server) {
   static const httpd_uri_t uri = {
       .uri = "/*",
       .method = HTTP_GET,
-      .handler = dmxbox_ui_handler,
+      .handler = dmxbox_httpd_statics_handler,
   };
   return httpd_register_uri_handler(server, &uri);
 }

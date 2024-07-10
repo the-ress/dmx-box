@@ -6,7 +6,7 @@ idf_component_register(
     private/scratch.c
     settings_sta.c
     api_config.c
-    ui.c
+    statics.c
     ws.c
     ws_ap_found.c
     webserver.c
