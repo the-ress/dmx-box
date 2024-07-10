@@ -6,8 +6,8 @@ import en from './resources/en.json'
 import { makeZodI18nMap } from 'zod-i18n-map'
 import { z } from 'zod'
 import App from './App'
-import SettingsPage from './pages/settings/SettingsPage.tsx'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { MainPage, SettingsPage } from './pages'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
@@ -31,7 +31,8 @@ const router = createBrowserRouter([
     path: '/',
     Component: App,
     children: [
-      { path: '/', Component: SettingsPage },
+      { path: '/', Component: MainPage },
+      { path: 'settings', Component: SettingsPage },
     ],
   },
 ])
