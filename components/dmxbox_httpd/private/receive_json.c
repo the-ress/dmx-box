@@ -4,13 +4,9 @@
 #include <esp_err.h>
 #include <esp_http_server.h>
 #include <esp_log.h>
-
-#ifndef CONFIG_DMXBOX_HTTPD_SCRATCH_SIZE
-#define CONFIG_DMXBOX_HTTPD_SCRATCH_SIZE 10240
-#endif
+#include "scratch.h"
 
 static const char TAG[] = "dmxbox_httpd_receive_json";
-static char dmxbox_httpd_scratch[CONFIG_DMXBOX_HTTPD_SCRATCH_SIZE];
 
 esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json) {
   if (!json) {

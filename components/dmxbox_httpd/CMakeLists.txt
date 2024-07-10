@@ -3,6 +3,7 @@ idf_component_register(
     private/api_strings.c
     private/cors.c
     private/receive_json.c
+    private/scratch.c
     settings_sta.c
     api_config.c
     ui.c

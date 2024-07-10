@@ -1,19 +1,30 @@
 #include "ui.h"
+#include "esp_err.h"
+#include "esp_http_server.h"
+#include "private/scratch.h"
+#include <assert.h>
 #include <esp_check.h>
 #include <esp_vfs.h>
 #include <string.h>
+#include <sys/_default_fcntl.h>
 #include <sys/fcntl.h>
 
-#ifndef CONFIG_WEB_MOUNT_POINT
-#define CONFIG_WEB_MOUNT_POINT "/www"
+#ifndef CONFIG_DMXBOX_HTTPD_STATICS_ROOT
+// must end with /
+#define CONFIG_DMXBOX_HTTPD_STATICS_ROOT "/www/"
 #endif
 
-static const char *dmxbox_httpd_default_type = "application/octet-stream";
+#ifndef CONFIG_DMXBOX_HTTPD_STATICS_INDEX
+#define CONFIG_DMXBOX_HTTPD_STATICS_INDEX                                      \
+  CONFIG_DMXBOX_HTTPD_STATICS_ROOT "index.html"
+#endif
 
-const char *dmxbox_httpd_type_from_path(const char *path) {
-  const char *ext = strrchr(path, '.');
+static const char TAG[] = "dmxbox_httpd_statics";
+
+static const char *dmxbox_httpd_type_from_filename(const char *filename) {
+  const char *ext = strrchr(filename, '.');
   if (!ext) {
-    return dmxbox_httpd_default_type;
+    return HTTPD_TYPE_OCTET;
   }
   if (!strcmp(ext, ".js") || !strcmp(ext, ".mjs")) {
     return "application/javascript";
@@ -36,91 +47,90 @@ const char *dmxbox_httpd_type_from_path(const char *path) {
   if (!strcmp(ext, ".woff2")) {
     return "font/woff2";
   }
-  return dmxbox_httpd_default_type;
+  return HTTPD_TYPE_OCTET;
 }
 
 // strips leading /, ensures path contains no further / and no ..
-const char *dmxbox_httpd_validate_uri(const char *uri) {
+static const char *dmxbox_httpd_get_static_filename(const char *uri) {
   if (*uri == '/') {
     uri++;
   }
   if (*uri == '\0') {
-    return "index.html";
-  }
-  if (strchr(uri, '/')) {
     return NULL;
   }
-  if (strstr(uri, "..")) {
-    return NULL;
+  const char *ch = uri;
+  while (*ch) {
+    if (*ch == '/') {
+      return NULL;
+    } else if (ch[0] == '.' && ch[1] == '.') {
+      return NULL;
+    }
+    ch++;
   }
   return uri;
 }
 
+static int dmxbox_httpd_open_static_file(const char *filename) {
+  char path[260] = CONFIG_DMXBOX_HTTPD_STATICS_ROOT;
+  if (strlcat(path, filename, sizeof(path)) >= sizeof(path)) {
+    ESP_LOGE(TAG, "filename too long");
+    return -1;
+  }
+  ESP_LOGI(TAG, "trying %s", path);
+  return open(path, O_RDONLY, 0);
+}
+
 static esp_err_t dmxbox_ui_handler(httpd_req_t *req) {
-  int fd = -1;
+  ESP_LOGI(TAG, "Handling GET %s", req->uri);
+
   esp_err_t ret = ESP_OK;
-  httpd_err_code_t http_status = HTTPD_500_INTERNAL_SERVER_ERROR;
+  const char *filename = dmxbox_httpd_get_static_filename(req->uri);
+  int fd = -1;
 
-  ESP_LOGI(__func__, "Handling %s", req->uri);
-
-  const char *uri = dmxbox_httpd_validate_uri(req->uri);
-  if (uri == NULL) {
-    ESP_LOGE(__func__, "invalid URL");
-    http_status = HTTPD_404_NOT_FOUND;
-    ret = ESP_FAIL;
-    goto send_response;
+  if (filename) {
+    fd = dmxbox_httpd_open_static_file(filename);
   }
-
-  char filepath[140] = CONFIG_WEB_MOUNT_POINT;
-  if (strlcat(filepath, "/", sizeof(filepath)) >= sizeof(filepath)) {
-    http_status = HTTPD_404_NOT_FOUND;
-    ret = ESP_FAIL;
-    goto send_response;
-  }
-
-  if (strlcat(filepath, uri, sizeof(filepath)) >= sizeof(filepath)) {
-    http_status = HTTPD_404_NOT_FOUND;
-    ret = ESP_FAIL;
-    goto send_response;
-  }
-
-  fd = open(filepath, O_RDONLY, 0);
   if (fd == -1) {
-    ESP_LOGE(__func__, "Failed to open file : %s", filepath);
-    http_status = HTTPD_404_NOT_FOUND;
-    ret = ESP_FAIL;
-    goto send_response;
+    ESP_LOGI(
+        TAG,
+        "could not find a file for that url, "
+        "using " CONFIG_DMXBOX_HTTPD_STATICS_INDEX
+    );
+    filename = CONFIG_DMXBOX_HTTPD_STATICS_INDEX;
+    fd = open(filename, O_RDONLY, 0);
+  }
+  if (fd == -1) {
+    return httpd_resp_send_404(req);
   }
 
-  const char *type = dmxbox_httpd_type_from_path(filepath);
-  ESP_LOGI(__func__, "MIME type: %s", type);
+  const char *type = dmxbox_httpd_type_from_filename(filename);
+  ESP_LOGI(TAG, "MIME type: %s", type);
   ESP_GOTO_ON_ERROR(
       httpd_resp_set_type(req, type),
       exit,
-      __func__,
+      TAG,
       "httpd_resp_set_type failed"
   );
 
   do {
-    static char chunk[16384];
-    size_t read_bytes = read(fd, chunk, sizeof(chunk));
+    size_t read_bytes =
+        read(fd, dmxbox_httpd_scratch, sizeof(dmxbox_httpd_scratch));
     switch (read_bytes) {
     case -1:
-      ESP_LOGE(__func__, "Failed to read file %s", filepath);
+      ESP_LOGE(TAG, "Failed to read file %s", filename);
       ret = ESP_FAIL;
-      http_status = HTTPD_500_INTERNAL_SERVER_ERROR;
       goto send_response;
 
     case 0:
-      ESP_LOGI(__func__, "File sending complete: %s", filepath);
+      ESP_LOGI(TAG, "File sending complete: %s", filename);
       goto send_response;
 
     default:
-      ESP_LOGD(__func__, "Sending %d-byte chunk of %s", read_bytes, filepath);
+      ESP_LOGD(TAG, "Sending %d-byte chunk of %s", read_bytes, filename);
       ESP_GOTO_ON_ERROR(
-          httpd_resp_send_chunk(req, chunk, read_bytes),
+          httpd_resp_send_chunk(req, dmxbox_httpd_scratch, read_bytes),
           exit,
-          __func__,
+          TAG,
           "http_resp_send_chunk failed"
       );
     }
@@ -131,14 +141,14 @@ send_response:
     ESP_GOTO_ON_ERROR(
         httpd_resp_send_chunk(req, NULL, 0),
         exit,
-        __func__,
+        TAG,
         "failed to send the final chunk"
     );
   } else {
     ESP_GOTO_ON_ERROR(
-        httpd_resp_send_err(req, http_status, NULL),
+        httpd_resp_send_500(req),
         exit,
-        __func__,
+        TAG,
         "failed to send HTTP 500"
     );
   }
