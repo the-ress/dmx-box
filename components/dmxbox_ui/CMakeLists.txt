@@ -16,9 +16,10 @@ ExternalProject_Add(
   CONFIGURE_COMMAND ""
 
   BUILD_ALWAYS TRUE
-  BUILD_COMMAND
-      cd "${NPM_PROJECT_DIR}" &&
-      ./node_modules/.bin/parcel build
+  BUILD_COMMAND cd "${NPM_PROJECT_DIR}"
+  COMMAND npm run clean
+  COMMAND npm run build
+        --
         --no-cache
         --no-source-maps
         --log-level info

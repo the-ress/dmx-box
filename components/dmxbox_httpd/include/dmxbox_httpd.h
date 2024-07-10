@@ -1,10 +1,21 @@
 #pragma once
+#include <cJSON.h>
 #include <esp_err.h>
+#include <esp_http_server.h>
 #include "sdkconfig.h"
 
 #ifndef CONFIG_DMXBOX_WEBSEVER_MAX_SOCKETS
 #define CONFIG_DMXBOX_WEBSEVER_MAX_SOCKETS 10
 #endif
 
-esp_err_t dmxbox_webserver_start(void);
+esp_err_t dmxbox_httpd_start(void);
 
+esp_err_t dmxbox_httpd_cors_allow_origin(httpd_req_t *req);
+esp_err_t dmxbox_httpd_cors_allow_methods(httpd_req_t *req, const char *methods);
+
+esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json);
+
+// will free the json
+esp_err_t dmxbox_httpd_send_json(httpd_req_t *req, cJSON *json);
+
+esp_err_t dmxbox_httpd_statics_register(httpd_handle_t server);

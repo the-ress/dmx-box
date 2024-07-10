@@ -1,5 +1,5 @@
 #include "ws_ap_found.h"
-#include "private/api_strings.h"
+#include "api_strings.h"
 #include <cJSON.h>
 #include <stddef.h>
 #include <stdint.h>

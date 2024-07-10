@@ -1,8 +1,7 @@
 #include "api_config.h"
+#include "api_strings.h"
+#include "dmxbox_httpd.h"
 #include "dmxbox_storage.h"
-#include "private/api_strings.h"
-#include "private/cors.h"
-#include "private/receive_json.h"
 #include "wifi.h"
 #include <cJSON.h>
 #include <esp_check.h>
@@ -12,9 +11,12 @@ static const char TAG[] = "dmxbox_api_config";
 
 static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
   ESP_LOGI(TAG, "GET request for %s", req->uri);
-  ESP_RETURN_ON_ERROR(httpd_resp_set_type(req, "application/json"), TAG,
-                      "failed to set response content type");
-  dmxbox_api_cors_allow_origin(req);
+  ESP_RETURN_ON_ERROR(
+      httpd_resp_set_type(req, "application/json"),
+      TAG,
+      "failed to set response content type"
+  );
+  dmxbox_httpd_cors_allow_origin(req);
 
   bool sta_mode_enabled = dmxbox_get_sta_mode_enabled();
 
@@ -27,8 +29,10 @@ static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
   cJSON_AddStringToObject(ap, "ssid", dmxbox_wifi_config.ap.ssid);
   cJSON_AddStringToObject(ap, "password", dmxbox_wifi_config.ap.password);
   cJSON_AddStringToObject(
-      ap, "auth_mode",
-      dmxbox_auth_mode_to_str(dmxbox_wifi_config.ap.auth_mode));
+      ap,
+      "auth_mode",
+      dmxbox_auth_mode_to_str(dmxbox_wifi_config.ap.auth_mode)
+  );
   cJSON_AddNumberToObject(ap, "channel", dmxbox_wifi_config.ap.channel);
 
   cJSON_AddBoolToObject(sta, "enabled", sta_mode_enabled);
@@ -36,8 +40,10 @@ static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
   cJSON_AddStringToObject(sta, "ssid", dmxbox_wifi_config.sta.ssid);
   cJSON_AddStringToObject(sta, "password", dmxbox_wifi_config.sta.password);
   cJSON_AddStringToObject(
-      sta, "auth_mode",
-      dmxbox_auth_mode_to_str(dmxbox_wifi_config.sta.auth_mode));
+      sta,
+      "auth_mode",
+      dmxbox_auth_mode_to_str(dmxbox_wifi_config.sta.auth_mode)
+  );
 
   const char *result = cJSON_Print(root);
   httpd_resp_sendstr(req, result);
@@ -50,8 +56,11 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   ESP_LOGI(TAG, "PUT request for %s", req->uri);
 
   cJSON *root = NULL;
-  ESP_RETURN_ON_ERROR(dmxbox_httpd_receive_json(req, &root), TAG,
-                      "failed to receive json request");
+  ESP_RETURN_ON_ERROR(
+      dmxbox_httpd_receive_json(req, &root),
+      TAG,
+      "failed to receive json request"
+  );
 
   cJSON *ap = cJSON_GetObjectItem(root, "ap");
   cJSON *sta = cJSON_GetObjectItem(root, "sta");
@@ -64,8 +73,11 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
 
   wifi_auth_mode_t ap_auth_mode;
   ESP_RETURN_ON_ERROR(
-      dmxbox_auth_mode_from_str(ap_auth_mode_string, &ap_auth_mode), TAG,
-      "Could not parse ap auth mode: %s", ap_auth_mode_string);
+      dmxbox_auth_mode_from_str(ap_auth_mode_string, &ap_auth_mode),
+      TAG,
+      "Could not parse ap auth mode: %s",
+      ap_auth_mode_string
+  );
   uint8_t ap_channel = (uint8_t)cJSON_GetObjectItem(ap, "channel")->valueint;
 
   bool sta_mode_enabled = cJSON_IsTrue(cJSON_GetObjectItem(sta, "enabled"));
@@ -76,19 +88,31 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
 
   wifi_auth_mode_t sta_auth_mode;
   ESP_RETURN_ON_ERROR(
-      dmxbox_auth_mode_from_str(sta_auth_mode_string, &sta_auth_mode), TAG,
-      "Could not parse sta auth mode: %s", sta_auth_mode_string);
+      dmxbox_auth_mode_from_str(sta_auth_mode_string, &sta_auth_mode),
+      TAG,
+      "Could not parse sta auth mode: %s",
+      sta_auth_mode_string
+  );
 
   ESP_LOGI(TAG, "Got ap hostname: '%s'", hostname);
   ESP_LOGI(
       TAG,
       "Got ap values: ssid = %s, pw = %s, auth_mode = %s (%d), channel = %d",
-      ap_ssid, ap_password, ap_auth_mode_string, ap_auth_mode, ap_channel);
+      ap_ssid,
+      ap_password,
+      ap_auth_mode_string,
+      ap_auth_mode,
+      ap_channel
+  );
   ESP_LOGI(
       TAG,
       "Got sta values: enabled = %d, ssid = %s, pw = %s, auth_mode = %s (%d)",
-      sta_mode_enabled, sta_ssid, sta_password, sta_auth_mode_string,
-      sta_auth_mode);
+      sta_mode_enabled,
+      sta_ssid,
+      sta_password,
+      sta_auth_mode_string,
+      sta_auth_mode
+  );
 
   if (!dmxbox_set_hostname(hostname)) {
     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Hostname too long");
@@ -102,8 +126,11 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   new_config.ap.channel = ap_channel;
 
   strlcpy(new_config.sta.ssid, sta_ssid, sizeof(new_config.sta.ssid));
-  strlcpy(new_config.sta.password, sta_password,
-          sizeof(new_config.sta.password));
+  strlcpy(
+      new_config.sta.password,
+      sta_password,
+      sizeof(new_config.sta.password)
+  );
   new_config.sta.auth_mode = sta_auth_mode;
 
   wifi_update_config(&new_config, sta_mode_enabled);
@@ -117,8 +144,8 @@ exit:
 
 static esp_err_t dmxbox_api_config_options(httpd_req_t *req) {
   ESP_LOGI(TAG, "OPTIONS request for %s", req->uri);
-  dmxbox_api_cors_allow_origin(req);
-  dmxbox_api_cors_allow_methods(req, "GET,PUT");
+  dmxbox_httpd_cors_allow_origin(req);
+  dmxbox_httpd_cors_allow_methods(req, "GET,PUT");
   ESP_RETURN_ON_ERROR(httpd_resp_send(req, "", 0), TAG, "resp_send fail");
   return ESP_OK;
 }
@@ -139,11 +166,20 @@ esp_err_t dmxbox_api_config_register(httpd_handle_t server) {
       .method = HTTP_OPTIONS,
       .handler = dmxbox_api_config_options,
   };
-  ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &get), TAG,
-                      "handler_config_get failed");
-  ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &put), TAG,
-                      "handler_config_put failed");
-  ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &options), TAG,
-                      "handler_config_options failed");
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &get),
+      TAG,
+      "handler_config_get failed"
+  );
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &put),
+      TAG,
+      "handler_config_put failed"
+  );
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &options),
+      TAG,
+      "handler_config_options failed"
+  );
   return ESP_OK;
 }

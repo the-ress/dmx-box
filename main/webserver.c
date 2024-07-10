@@ -1,8 +1,5 @@
-#include "api_config.h"
+#include "dmxbox_api.h"
 #include "dmxbox_httpd.h"
-#include "settings_sta.h"
-#include "statics.h"
-#include "ws.h"
 #include <esp_check.h>
 #include <esp_http_server.h>
 #include <esp_log.h>
@@ -28,18 +25,11 @@ esp_err_t dmxbox_webserver_start(void) {
   ESP_LOGI(TAG, "Registering URI handlers");
 
   ESP_RETURN_ON_ERROR(
-      dmxbox_api_config_register(server),
+      dmxbox_api_register(server),
       TAG,
       "api_config_register failed"
   );
 
-  ESP_RETURN_ON_ERROR(dmxbox_ws_register(server), TAG, "ws register failed");
-
-  ESP_RETURN_ON_ERROR(
-      dmxbox_api_settings_sta_register(server),
-      TAG,
-      "api_settings_sta_register failed"
-  );
 
   ESP_RETURN_ON_ERROR(
       dmxbox_httpd_statics_register(server),

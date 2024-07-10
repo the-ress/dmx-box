@@ -1,10 +1,10 @@
-#include "receive_json.h"
 #include "cJSON.h"
+#include "dmxbox_httpd.h"
+#include "scratch.h"
 #include <esp_check.h>
 #include <esp_err.h>
 #include <esp_http_server.h>
 #include <esp_log.h>
-#include "scratch.h"
 
 static const char TAG[] = "dmxbox_httpd_receive_json";
 
@@ -16,7 +16,9 @@ esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json) {
   if (req->content_len >= sizeof(dmxbox_httpd_scratch)) {
     ESP_RETURN_ON_ERROR(
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Content too long"),
-        TAG, "failed to send 400 Content too long");
+        TAG,
+        "failed to send 400 Content too long"
+    );
     return ESP_OK;
   }
 
@@ -30,8 +32,11 @@ esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json) {
     return ESP_FAIL;
 
   case HTTPD_SOCK_ERR_TIMEOUT:
-    ESP_RETURN_ON_ERROR(httpd_resp_send_err(req, HTTPD_408_REQ_TIMEOUT, NULL),
-                        TAG, "failed to send 408 Request Timeout");
+    ESP_RETURN_ON_ERROR(
+        httpd_resp_send_err(req, HTTPD_408_REQ_TIMEOUT, NULL),
+        TAG,
+        "failed to send 408 Request Timeout"
+    );
     return ESP_FAIL;
 
   default:
@@ -44,8 +49,10 @@ esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json) {
     dmxbox_httpd_scratch[received] = 0;
     ESP_LOGD(TAG, "failed to parse JSON: %s", dmxbox_httpd_scratch);
     ESP_RETURN_ON_ERROR(
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad Request"), TAG,
-        "failed to send 400 Bad Request");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad Request"),
+        TAG,
+        "failed to send 400 Bad Request"
+    );
     return ESP_OK;
   }
 
@@ -53,13 +60,23 @@ esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json) {
 }
 
 esp_err_t dmxbox_httpd_send_json(httpd_req_t *req, cJSON *json) {
-  if (!cJSON_PrintPreallocated(json, dmxbox_httpd_scratch,
-                               sizeof(dmxbox_httpd_scratch), false)) {
+  if (!cJSON_PrintPreallocated(
+          json,
+          dmxbox_httpd_scratch,
+          sizeof(dmxbox_httpd_scratch),
+          false
+      )) {
     return ESP_ERR_INVALID_SIZE;
   }
-  ESP_RETURN_ON_ERROR(httpd_resp_set_type(req, HTTPD_TYPE_JSON), TAG,
-                      "failed to set content type");
-  ESP_RETURN_ON_ERROR(httpd_resp_sendstr(req, dmxbox_httpd_scratch), TAG,
-                      "failed to send response");
+  ESP_RETURN_ON_ERROR(
+      httpd_resp_set_type(req, HTTPD_TYPE_JSON),
+      TAG,
+      "failed to set content type"
+  );
+  ESP_RETURN_ON_ERROR(
+      httpd_resp_sendstr(req, dmxbox_httpd_scratch),
+      TAG,
+      "failed to send response"
+  );
   return ESP_OK;
 }

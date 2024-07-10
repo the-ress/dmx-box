@@ -1,8 +1,7 @@
-#include "statics.h"
+#include "dmxbox_httpd.h"
 #include "esp_err.h"
 #include "esp_http_server.h"
-#include "private/scratch.h"
-#include <assert.h>
+#include "scratch.h"
 #include <esp_check.h>
 #include <esp_vfs.h>
 #include <string.h>

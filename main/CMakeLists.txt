@@ -1,16 +1,18 @@
 idf_component_register(
     SRCS
-        "artnet/artnet.c"
-        "dmx/dmx_receive.c"
-        "dmx/dmx_send.c"
-        "dns.c"
-        "effects/effects.c"
-        "factory_reset.c"
-        "hashmap.c"
-        "main.c"
-        "recalc.c"
+      artnet/artnet.c
+      dmx/dmx_receive.c
+      dmx/dmx_send.c
+      dns.c
+      effects/effects.c
+      factory_reset.c
+      hashmap.c
+      main.c
+      recalc.c
+      webserver.c
     INCLUDE_DIRS .
-    REQUIRES 
+    REQUIRES
+      dmxbox_api
       dmxbox_httpd
       dmxbox_led
       dmxbox_storage

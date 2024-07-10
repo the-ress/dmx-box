@@ -1,9 +1,9 @@
 #include "settings_sta.h"
+#include "api_strings.h"
 #include "cJSON.h"
+#include "dmxbox_httpd.h"
 #include "esp_err.h"
 #include "esp_wifi_types.h"
-#include "private/api_strings.h"
-#include "private/receive_json.h"
 #include "wifi.h"
 #include <esp_check.h>
 #include <esp_http_server.h>
@@ -20,8 +20,12 @@ static esp_err_t dmxbox_api_settings_sta_get(httpd_req_t *req) {
     goto exit;
   }
   dmxbox_wifi_sta_t sta;
-  ESP_GOTO_ON_ERROR(dmxbox_wifi_get_sta(&sta), exit, TAG,
-                    "failed to get sta information");
+  ESP_GOTO_ON_ERROR(
+      dmxbox_wifi_get_sta(&sta),
+      exit,
+      TAG,
+      "failed to get sta information"
+  );
   if (!cJSON_AddBoolToObject(json, field_enabled, sta.enabled)) {
     goto exit;
   }
@@ -41,8 +45,11 @@ static esp_err_t dmxbox_api_settings_sta_put(httpd_req_t *req) {
   const char *http_status = HTTPD_400;
   cJSON *json = NULL;
 
-  ESP_RETURN_ON_ERROR(dmxbox_httpd_receive_json(req, &json), TAG,
-                      "failed to receive json");
+  ESP_RETURN_ON_ERROR(
+      dmxbox_httpd_receive_json(req, &json),
+      TAG,
+      "failed to receive json"
+  );
 
   cJSON *enabled = cJSON_GetObjectItemCaseSensitive(json, field_enabled);
   if (!enabled || !cJSON_IsBool(enabled)) {
@@ -78,8 +85,11 @@ static esp_err_t dmxbox_api_settings_sta_put(httpd_req_t *req) {
       goto send;
     }
 
-    if (dmxbox_wifi_enable_sta(ssid->valuestring, auth_mode,
-                               password->valuestring) != ESP_OK) {
+    if (dmxbox_wifi_enable_sta(
+            ssid->valuestring,
+            auth_mode,
+            password->valuestring
+        ) != ESP_OK) {
       goto send;
     }
   } else if (dmxbox_wifi_disable_sta() != ESP_OK) {
@@ -91,11 +101,19 @@ static esp_err_t dmxbox_api_settings_sta_put(httpd_req_t *req) {
 
 send:
 
-  ESP_GOTO_ON_ERROR(httpd_resp_set_status(req, http_status), exit, TAG,
-                    "failed to set status");
+  ESP_GOTO_ON_ERROR(
+      httpd_resp_set_status(req, http_status),
+      exit,
+      TAG,
+      "failed to set status"
+  );
 
-  ESP_GOTO_ON_ERROR(httpd_resp_send_chunk(req, NULL, 0), exit, TAG,
-                    "failed to send empty chunk");
+  ESP_GOTO_ON_ERROR(
+      httpd_resp_send_chunk(req, NULL, 0),
+      exit,
+      TAG,
+      "failed to send empty chunk"
+  );
 exit:
   cJSON_free(json);
   return ret;
@@ -112,9 +130,15 @@ esp_err_t dmxbox_api_settings_sta_register(httpd_handle_t server) {
       .method = HTTP_PUT,
       .handler = dmxbox_api_settings_sta_put,
   };
-  ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &get), TAG,
-                      "handler_config_get failed");
-  ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &put), TAG,
-                      "handler_config_put failed");
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &get),
+      TAG,
+      "handler_config_get failed"
+  );
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &put),
+      TAG,
+      "handler_config_put failed"
+  );
   return ESP_OK;
 }

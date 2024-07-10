@@ -13,6 +13,7 @@
 #include "dmxbox_httpd.h"
 #include "dmxbox_led.h"
 #include "dmxbox_storage.h"
+#include "webserver.h"
 #include "dns.h"
 #include "effects/effects.h"
 #include "factory_reset.h"
