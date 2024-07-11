@@ -1,5 +1,6 @@
 idf_component_register(
     SRCS
+      artnet/artnet_client_tracking.c
       artnet/artnet.c
       dmx/dmx_receive.c
       dmx/dmx_send.c

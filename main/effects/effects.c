@@ -11,9 +11,9 @@
 
 #include "artnet/artnet.h"
 #include "const.h"
+#include "dmxbox_storage.h"
 #include "effects.h"
 #include "hashmap.h"
-#include "dmxbox_storage.h"
 
 static const char *TAG = "effects";
 
@@ -25,10 +25,12 @@ static const char *TAG = "effects";
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #endif
 
-// TODO use uint32_t instead of int64_t
+// TODO use uint32_t instead of int64_t?
 
 // actually microseconds, TODO rename or something
 static const uint32_t ticks_per_millisecond = 1000;
+
+uint16_t effect_control_universe_address = 6;
 
 struct step_channel {
   struct step_channel *next;
@@ -68,7 +70,9 @@ struct step {
 struct effect {
   struct effect *next;
 
-  // private int rateSubmasterNumber;
+  uint16_t level_channel;
+  uint16_t rate_channel;
+
   struct step *steps_head;
 
   // precalculated values
@@ -81,11 +85,15 @@ struct effect {
   int64_t saved_total_offset_internal_value;
 };
 
-static struct step_channel step3_channel2 =
-    {.next = NULL, .channel = 6, .level = 127};
+static struct step_channel step3_channel2 = {
+    .next = NULL,
+    .channel = 18,
+    .level = 255};
 
-static struct step_channel step3_channel1 =
-    {.next = &step3_channel2, .channel = 5, .level = 255};
+static struct step_channel step3_channel1 = {
+    .next = &step3_channel2,
+    .channel = 15,
+    .level = 255};
 
 static struct step step3 = {
     .next = NULL,
@@ -96,11 +104,15 @@ static struct step step3 = {
     .channels_head = &step3_channel1,
 };
 
-static struct step_channel step2_channel2 =
-    {.next = NULL, .channel = 4, .level = 127};
+static struct step_channel step2_channel2 = {
+    .next = NULL,
+    .channel = 10,
+    .level = 255};
 
-static struct step_channel step2_channel1 =
-    {.next = &step2_channel2, .channel = 3, .level = 255};
+static struct step_channel step2_channel1 = {
+    .next = &step2_channel2,
+    .channel = 8,
+    .level = 255};
 
 static struct step step2 = {
     .next = &step3,
@@ -111,11 +123,15 @@ static struct step step2 = {
     .channels_head = &step2_channel1,
 };
 
-static struct step_channel step1_channel2 =
-    {.next = NULL, .channel = 2, .level = 127};
+static struct step_channel step1_channel2 = {
+    .next = NULL,
+    .channel = 2,
+    .level = 255};
 
-static struct step_channel step1_channel1 =
-    {.next = &step1_channel2, .channel = 1, .level = 255};
+static struct step_channel step1_channel1 = {
+    .next = &step1_channel2,
+    .channel = 1,
+    .level = 255};
 
 static struct step step1 = {
     .next = &step2,
@@ -128,6 +144,8 @@ static struct step step1 = {
 
 static struct effect effect1 = {
     .next = NULL,
+    .level_channel = 1,
+    .rate_channel = 2,
     .steps_head = &step1,
 };
 
@@ -338,12 +356,27 @@ static void dmxbox_effects_tick() {
   uint8_t tick_data[DMX_CHANNEL_COUNT] = {0};
   int64_t ticks = esp_timer_get_time();
 
+  uint8_t control_data[DMX_CHANNEL_COUNT] = {0};
+
   taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
-  uint8_t effect_level = dmxbox_artnet_in_data[11 - 1];
-  uint8_t rate_raw = dmxbox_artnet_in_data[12 - 1];
+  const uint8_t *control_data_unsafe =
+      dmxbox_artnet_get_universe_data(effect_control_universe_address);
+  if (control_data_unsafe) {
+    memcpy(control_data, control_data_unsafe, DMX_CHANNEL_COUNT);
+  }
   taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
 
   for (struct effect *effect = effects_head; effect; effect = effect->next) {
+    uint8_t effect_level = 0;
+    uint8_t rate_raw = 127;
+
+    if (effect->level_channel) {
+      effect_level = control_data[effect->level_channel - 1];
+    }
+    if (effect->rate_channel) {
+      rate_raw = control_data[effect->rate_channel - 1];
+    }
+
     process_effect(tick_data, effect, effect_level, rate_raw, ticks);
   }
 

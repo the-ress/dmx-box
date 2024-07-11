@@ -1,7 +1,8 @@
 #include "const.h"
 
 extern portMUX_TYPE dmxbox_artnet_spinlock;
-extern uint8_t dmxbox_artnet_in_data[DMX_CHANNEL_COUNT];
+const uint8_t *dmxbox_artnet_get_native_universe_data();
+const uint8_t *dmxbox_artnet_get_universe_data(uint16_t address);
 
 void dmxbox_artnet_initialize(void);
 

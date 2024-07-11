@@ -30,12 +30,11 @@ void dmxbox_recalc(
   }
 
   taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
+  const uint8_t *artnet_data = dmxbox_artnet_get_native_universe_data();
   for (uint16_t i = 1; i < DMX_PACKET_SIZE_MAX; i++) {
-    data[i] =
-        MAX(MAX(data[i], dmxbox_artnet_in_data[i - 1]),
-            dmxbox_effects_data[i - 1]);
+    data[i] = MAX(MAX(data[i], artnet_data[i - 1]), dmxbox_effects_data[i - 1]);
 
-    *artnet_active |= dmxbox_artnet_in_data[i - 1] != 0;
+    *artnet_active |= artnet_data[i - 1] != 0;
     *dmx_out_active |= data[i] != 0;
   }
   taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
