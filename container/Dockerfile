@@ -3,6 +3,7 @@ FROM dmxbox/espidf
 RUN : \
   && apt-get update \
   && apt-get install -y \
+    cmake \
     eza \
     fzf \
     neovim \
@@ -30,6 +31,8 @@ RUN : \
   && export NVM_DIR="$HOME/.config/nvm" \
   && \. "$NVM_DIR/nvm.sh" \
   && nvm install 20 \
-  && npm install --global typescript-language-server \
+  && npm install --global npm \
+                          typescript-language-server \
+                          @tailwindcss/language-server \
   && :
 
