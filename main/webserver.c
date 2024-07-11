@@ -29,13 +29,6 @@ esp_err_t dmxbox_webserver_start(void) {
       TAG,
       "api_config_register failed"
   );
-
-  ESP_RETURN_ON_ERROR(
-      dmxbox_httpd_cors_register_options(server, "/api/*"),
-      TAG,
-      "failed to register /api OPTIONS handler"
-  );
-
   ESP_RETURN_ON_ERROR(
       dmxbox_httpd_statics_register(server),
       TAG,

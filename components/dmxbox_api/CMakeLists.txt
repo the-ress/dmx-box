@@ -3,6 +3,7 @@ idf_component_register(
     api_config.c
     api_strings.c
     dmxbox_api.c
+    effects_steps.c
     settings_sta.c
     ws.c
     ws_ap_found.c
