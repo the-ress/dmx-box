@@ -12,7 +12,7 @@ export interface EffectEditorProps {
 export default function EffectEditor({effectId, name }: EffectEditorProps) {
   return (
     <div>
-      <h3>{name}</h3>
+      <h1 className="flex-none">Effect {effectId}</h1>
       <ol>
       <li><LinkWithSearchParams to="./steps/1">Step 1</LinkWithSearchParams></li>
       </ol>

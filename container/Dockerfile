@@ -19,6 +19,7 @@ RUN : \
 USER ubuntu
 ENV HOME /home/ubuntu
 ENV ENV "${HOME}/.shrc"
+ENV SHELL "/usr/bin/zsh"
 ENV XDG_CACHE_HOME "${HOME}/.cache"
 ENV XDG_CONFIG_HOME "${HOME}/.config"
 ENV XDG_STATE_HOME "${HOME}/.local/state"

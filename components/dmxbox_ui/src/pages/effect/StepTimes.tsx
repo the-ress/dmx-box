@@ -7,7 +7,7 @@ interface DurationInputProps {
 
 function DurationInput({ label, name }: DurationInputProps) {
   return (
-    <div className="mx-1">
+    <div className="">
       <Input
         name={name}
         placeholder={label}
@@ -18,7 +18,7 @@ function DurationInput({ label, name }: DurationInputProps) {
 
 export default function StepTimes() {
   return <>
-    <div className="flex flex-row">
+    <div className="flex flex-row gap-x-1">
       <DurationInput name="time" label="time" />
       <DurationInput name="in" label="in" />
       <DurationInput name="dwell" label="dwell" />

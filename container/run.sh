@@ -29,4 +29,4 @@ $DOCKER container exec \
   --tty \
   --workdir "${MOUNTPOINT}" \
   $CONTAINER \
-  /bin/zsh -c '. /opt/esp/idf/export.sh && exec /bin/zsh'
+  /bin/zsh -c '. /opt/esp/idf/export.sh && SHELL=/bin/zsh exec /bin/zsh'

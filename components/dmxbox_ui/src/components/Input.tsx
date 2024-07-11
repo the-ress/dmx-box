@@ -3,8 +3,9 @@ import { useFormContext } from "react-hook-form"
 export interface InputProps {
   name: string
   placeholder?: string
-  type?: 'text' | 'password'
+  type?: 'text' | 'password' | 'number'
   maxLength?: number
+  inputMode?: HTMLInputElement['inputMode']
 }
 
 export default function Input({ name, ...props }: InputProps) {
