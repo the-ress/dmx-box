@@ -35,7 +35,7 @@ function StepChannelList({ name }: { name: string }) {
   ))
 }
 
-export default function Step"age() {
+export default function StepPage() {
 const { effectId, stepId } = useParams()
 const form = useForm({
   defaultValues: {

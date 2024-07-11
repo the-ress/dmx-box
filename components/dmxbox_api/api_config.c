@@ -142,29 +142,17 @@ exit:
   return ESP_OK;
 }
 
-static esp_err_t dmxbox_api_config_options(httpd_req_t *req) {
-  ESP_LOGI(TAG, "OPTIONS request for %s", req->uri);
-  dmxbox_httpd_cors_allow_origin(req);
-  dmxbox_httpd_cors_allow_methods(req, "GET,PUT");
-  ESP_RETURN_ON_ERROR(httpd_resp_send(req, "", 0), TAG, "resp_send fail");
-  return ESP_OK;
-}
-
 esp_err_t dmxbox_api_config_register(httpd_handle_t server) {
+  static const char *const endpoint = "/api/wifi-config";
   static const httpd_uri_t get = {
-      .uri = "/api/wifi-config",
+      .uri = endpoint,
       .method = HTTP_GET,
       .handler = dmxbox_api_config_get,
   };
   static const httpd_uri_t put = {
-      .uri = "/api/wifi-config",
+      .uri = endpoint,
       .method = HTTP_PUT,
       .handler = dmxbox_api_config_put,
-  };
-  static const httpd_uri_t options = {
-      .uri = "/api/wifi-config",
-      .method = HTTP_OPTIONS,
-      .handler = dmxbox_api_config_options,
   };
   ESP_RETURN_ON_ERROR(
       httpd_register_uri_handler(server, &get),
@@ -175,11 +163,6 @@ esp_err_t dmxbox_api_config_register(httpd_handle_t server) {
       httpd_register_uri_handler(server, &put),
       TAG,
       "handler_config_put failed"
-  );
-  ESP_RETURN_ON_ERROR(
-      httpd_register_uri_handler(server, &options),
-      TAG,
-      "handler_config_options failed"
   );
   return ESP_OK;
 }

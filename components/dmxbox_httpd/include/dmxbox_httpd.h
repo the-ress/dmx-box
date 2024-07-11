@@ -12,6 +12,7 @@ esp_err_t dmxbox_httpd_start(void);
 
 esp_err_t dmxbox_httpd_cors_allow_origin(httpd_req_t *req);
 esp_err_t dmxbox_httpd_cors_allow_methods(httpd_req_t *req, const char *methods);
+esp_err_t dmxbox_httpd_cors_register_options(httpd_handle_t server, const char *path);
 
 esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json);
 
