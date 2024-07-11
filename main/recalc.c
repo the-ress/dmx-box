@@ -1,18 +1,23 @@
+#include <esp_log.h>
 #include <string.h>
 
 #include "artnet/artnet.h"
 #include "const.h"
 #include "dmx/dmx_receive.h"
+#include "dmx/dmx_send.h"
+#include "dmxbox_led.h"
 #include "effects/effects.h"
 #include "recalc.h"
 
-// static const char *TAG = "recalc";
+static const char *TAG = "recalc";
+
+#define CONFIG_RECALC_PERIOD 30
 
 #ifndef MAX
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #endif
 
-void dmxbox_recalc(
+static void dmxbox_recalc(
     uint8_t data[DMX_PACKET_SIZE_MAX],
     bool *artnet_active,
     bool *dmx_out_active
@@ -38,4 +43,27 @@ void dmxbox_recalc(
     *dmx_out_active |= data[i] != 0;
   }
   taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
+}
+
+void dmxbox_recalc_task(void *parameter) {
+  ESP_LOGI(TAG, "Recalc task started");
+
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+
+  uint8_t data[DMX_PACKET_SIZE_MAX];
+  while (1) {
+    bool artnet_active;
+    bool dmx_out_active;
+
+    dmxbox_recalc(data, &artnet_active, &dmx_out_active);
+
+    taskENTER_CRITICAL(&dmxbox_dmx_out_spinlock);
+    memcpy(dmxbox_dmx_out_data, data, DMX_PACKET_SIZE_MAX);
+    taskEXIT_CRITICAL(&dmxbox_dmx_out_spinlock);
+
+    dmxbox_set_artnet_active(artnet_active);
+    dmxbox_set_dmx_out_active(dmx_out_active);
+
+    vTaskDelayUntil(&xLastWakeTime, CONFIG_RECALC_PERIOD / portTICK_PERIOD_MS);
+  }
 }

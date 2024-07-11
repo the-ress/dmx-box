@@ -1,3 +1,5 @@
+#include <esp_log.h>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
@@ -5,9 +7,6 @@
 #include <sdkconfig.h>
 #include <stdint.h>
 #include <string.h>
-
-#include "esp_log.h"
-#include "esp_timer.h"
 
 #include "artnet/artnet.h"
 #include "const.h"
@@ -390,10 +389,11 @@ static void dmxbox_effects_tick() {
 }
 
 void dmxbox_effects_task(void *parameter) {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+
   while (1) {
     dmxbox_effects_tick();
-    // TOOD change to vTaskDelayUntil
-    vTaskDelay(EFFECTS_PERIOD / portTICK_PERIOD_MS);
+    vTaskDelayUntil(&xLastWakeTime, EFFECTS_PERIOD / portTICK_PERIOD_MS);
   }
 
   // vTaskDelete(NULL);

@@ -1,8 +1,9 @@
-#include "dmx_send.h"
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include "const.h"
-#include "esp_log.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "dmx_send.h"
 #include "dmxbox_led.h"
 
 #define DMX_SEND_PERIOD 30
@@ -39,6 +40,7 @@ void dmxbox_dmx_send_task(void *parameter) {
 
   ESP_ERROR_CHECK(configure_dmx_out());
 
+  TickType_t xLastWakeTime = xTaskGetTickCount();
   while (1) {
     // write the packet to the DMX driver
     taskENTER_CRITICAL(&dmxbox_dmx_out_spinlock);
@@ -60,7 +62,7 @@ void dmxbox_dmx_send_task(void *parameter) {
       continue;
     }
 
-    vTaskDelay(DMX_SEND_PERIOD / portTICK_PERIOD_MS);
+    vTaskDelayUntil(&xLastWakeTime, DMX_SEND_PERIOD / portTICK_PERIOD_MS);
 
     // block until the packet is done being sent
     if (!dmx_wait_sent(DMX_OUT_NUM, DMX_TIMEOUT_TICK)) {

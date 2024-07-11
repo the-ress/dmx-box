@@ -13,23 +13,23 @@
 #include "dmxbox_httpd.h"
 #include "dmxbox_led.h"
 #include "dmxbox_storage.h"
-#include "webserver.h"
 #include "dns.h"
 #include "effects/effects.h"
 #include "factory_reset.h"
 #include "recalc.h"
 #include "sdkconfig.h"
+#include "webserver.h"
 #include "wifi.h"
 
 static const char *TAG = "main";
 
-#define CONFIG_RECALC_PERIOD 100
-
 esp_err_t init_fs(void) {
-  esp_vfs_spiffs_conf_t conf = {.base_path = "/www",
-                                .partition_label = NULL,
-                                .max_files = 5,
-                                .format_if_mount_failed = false};
+  esp_vfs_spiffs_conf_t conf = {
+      .base_path = "/www",
+      .partition_label = NULL,
+      .max_files = 5,
+      .format_if_mount_failed = false,
+  };
   esp_err_t ret = esp_vfs_spiffs_register(&conf);
 
   if (ret != ESP_OK) {
@@ -46,8 +46,11 @@ esp_err_t init_fs(void) {
   size_t total = 0, used = 0;
   ret = esp_spiffs_info(NULL, &total, &used);
   if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)",
-             esp_err_to_name(ret));
+    ESP_LOGE(
+        TAG,
+        "Failed to get SPIFFS partition information (%s)",
+        esp_err_to_name(ret)
+    );
   } else {
     ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
   }
@@ -85,22 +88,7 @@ void app_main(void) {
 
   xTaskCreate(dmxbox_effects_task, "Effect runner", 10000, NULL, 3, NULL);
 
-  xTaskCreate(dmxbox_dmx_send_task, "DMX send", 10000, NULL, 4, NULL);
+  xTaskCreate(dmxbox_recalc_task, "Recalc", 10000, NULL, 4, NULL);
 
-  uint8_t data[DMX_PACKET_SIZE_MAX];
-  while (1) {
-    bool artnet_active;
-    bool dmx_out_active;
-
-    dmxbox_recalc(data, &artnet_active, &dmx_out_active);
-
-    taskENTER_CRITICAL(&dmxbox_dmx_out_spinlock);
-    memcpy(dmxbox_dmx_out_data, data, DMX_PACKET_SIZE_MAX);
-    taskEXIT_CRITICAL(&dmxbox_dmx_out_spinlock);
-
-    dmxbox_set_artnet_active(artnet_active);
-    dmxbox_set_dmx_out_active(dmx_out_active);
-
-    vTaskDelay(CONFIG_RECALC_PERIOD / portTICK_PERIOD_MS);
-  }
+  xTaskCreate(dmxbox_dmx_send_task, "DMX send", 10000, NULL, 5, NULL);
 }
