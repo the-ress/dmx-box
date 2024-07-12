@@ -27,16 +27,16 @@ static const char *TAG = "effects";
 // actually microseconds, TODO rename or something
 static const uint32_t ticks_per_millisecond = 1000;
 
-uint16_t effect_control_universe_address = 6;
+static uint16_t effect_control_universe_address = 6;
 
-struct step_channel {
+typedef struct step_channel {
   struct step_channel *next;
 
   uint16_t channel;
   uint8_t level;
-};
+} step_channel_t;
 
-struct step {
+typedef struct step {
   struct step *next;
 
   uint32_t time;
@@ -62,15 +62,15 @@ struct step {
   // internal state
   bool active;
   int64_t total_offset; // only relevant when active
-};
+} step_t;
 
-struct effect {
+typedef struct effect {
   struct effect *next;
 
   uint16_t level_channel;
   uint16_t rate_channel;
 
-  struct step *steps_head;
+  step_t *steps_head;
 
   // precalculated values
   uint32_t effect_length;
@@ -80,73 +80,23 @@ struct effect {
   int rate;
   int64_t initial_ticks;
   int64_t saved_total_offset_internal_value;
-};
+} effect_t;
 
-static struct step_channel step3_channel2 = {
-    .next = NULL,
-    .channel = 18,
-    .level = 255};
+static step_channel_t *step_channel_alloc() {
+  return calloc(1, sizeof(step_channel_t));
+}
 
-static struct step_channel step3_channel1 = {
-    .next = &step3_channel2,
-    .channel = 15,
-    .level = 255};
+static void step_channel_free(step_channel_t *data) { free(data); }
 
-static struct step step3 = {
-    .next = NULL,
-    .time = 1000,
-    .in = 250,
-    .dwell = 250,
-    .out = 250,
-    .channels_head = &step3_channel1,
-};
+static step_t *step_alloc() { return calloc(1, sizeof(step_t)); }
 
-static struct step_channel step2_channel2 = {
-    .next = NULL,
-    .channel = 10,
-    .level = 255};
+static void step_free(step_t *data) { free(data); }
 
-static struct step_channel step2_channel1 = {
-    .next = &step2_channel2,
-    .channel = 8,
-    .level = 255};
+static effect_t *effect_alloc() { return calloc(1, sizeof(effect_t)); }
 
-static struct step step2 = {
-    .next = &step3,
-    .time = 1000,
-    .in = 250,
-    .dwell = 250,
-    .out = 250,
-    .channels_head = &step2_channel1,
-};
+static void effect_free(effect_t *data) { free(data); }
 
-static struct step_channel step1_channel2 = {
-    .next = NULL,
-    .channel = 2,
-    .level = 255};
-
-static struct step_channel step1_channel1 = {
-    .next = &step1_channel2,
-    .channel = 1,
-    .level = 255};
-
-static struct step step1 = {
-    .next = &step2,
-    .time = 1000,
-    .in = 250,
-    .dwell = 250,
-    .out = 250,
-    .channels_head = &step1_channel1,
-};
-
-static struct effect effect1 = {
-    .next = NULL,
-    .level_channel = 1,
-    .rate_channel = 2,
-    .steps_head = &step1,
-};
-
-static struct effect *effects_head = &effect1;
+static effect_t *effects_head = NULL;
 
 // last_data = calloc(DMX_CHANNEL_COUNT, sizeof(*last_data));
 // free(entry->last_data);
@@ -155,7 +105,77 @@ portMUX_TYPE dmxbox_effects_spinlock = portMUX_INITIALIZER_UNLOCKED;
 uint8_t dmxbox_effects_data[DMX_CHANNEL_COUNT] = {0};
 
 void dmxbox_effects_initialize() {
-  for (struct effect *effect = effects_head; effect; effect = effect->next) {
+  effect_t *effect1 = effect_alloc();
+  step_t *step1 = step_alloc();
+  step_t *step2 = step_alloc();
+  step_t *step3 = step_alloc();
+  step_channel_t *step1_channel1 = step_channel_alloc();
+  step_channel_t *step1_channel2 = step_channel_alloc();
+  step_channel_t *step2_channel1 = step_channel_alloc();
+  step_channel_t *step2_channel2 = step_channel_alloc();
+  step_channel_t *step3_channel1 = step_channel_alloc();
+  step_channel_t *step3_channel2 = step_channel_alloc();
+  step_channel_t *step3_channel3 = step_channel_alloc();
+  step_channel_t *step3_channel4 = step_channel_alloc();
+  step_channel_t *step3_channel5 = step_channel_alloc();
+
+  effects_head = effect1;
+
+  effect1->steps_head = step1;
+  step1->channels_head = step1_channel1;
+  step2->channels_head = step2_channel1;
+  step3->channels_head = step3_channel1;
+
+  step1->next = step2;
+  step2->next = step3;
+  step1_channel1->next = step1_channel2;
+  step2_channel1->next = step2_channel2;
+  step3_channel1->next = step3_channel2;
+  step3_channel2->next = step3_channel3;
+  step3_channel3->next = step3_channel4;
+  step3_channel4->next = step3_channel5;
+
+  effect1->level_channel = 1;
+  effect1->rate_channel = 2;
+
+  step1->time = 1000;
+  step1->in = 250;
+  step1->dwell = 250;
+  step1->out = 250;
+
+  step1_channel1->channel = 1;
+  step1_channel1->level = 255;
+
+  step1_channel2->channel = 2;
+  step1_channel2->level = 255;
+
+  step2->time = 1000;
+  step2->in = 250;
+  step2->dwell = 250;
+  step2->out = 250;
+
+  step2_channel1->channel = 8;
+  step2_channel1->level = 255;
+  step2_channel2->channel = 10;
+  step2_channel2->level = 255;
+
+  step3->time = 1000;
+  step3->in = 250;
+  step3->dwell = 250;
+  step3->out = 250;
+
+  step3_channel1->channel = 15;
+  step3_channel1->level = 255;
+  step3_channel2->channel = 16;
+  step3_channel2->level = 255;
+  step3_channel3->channel = 17;
+  step3_channel3->level = 255;
+  step3_channel4->channel = 18;
+  step3_channel4->level = 255;
+  step3_channel5->channel = 19;
+  step3_channel5->level = 255;
+
+  for (effect_t *effect = effects_head; effect; effect = effect->next) {
     effect->active = false;
     effect->initial_ticks = 0;
     effect->rate = 100;
@@ -164,7 +184,7 @@ void dmxbox_effects_initialize() {
     uint32_t current_offset = 0;
 
     int step_number = 1;
-    for (struct step *step = effect->steps_head; step;
+    for (step_t *step = effect->steps_head; step;
          step = step->next, step_number++) {
       step->active = false;
 
@@ -214,7 +234,7 @@ static int rate_from_fader_level(uint8_t level) {
 }
 
 static int64_t
-update_chase_effect_rate(struct effect *effect, int64_t ticks, int new_rate) {
+update_chase_effect_rate(effect_t *effect, int64_t ticks, int new_rate) {
   if (effect->rate != 0) // Effect isn't paused
   {
     effect->saved_total_offset_internal_value =
@@ -233,8 +253,7 @@ update_chase_effect_rate(struct effect *effect, int64_t ticks, int new_rate) {
   return effect->saved_total_offset_internal_value / 100;
 }
 
-static void
-activate_new_steps(struct effect *effect, int64_t current_total_offset) {
+static void activate_new_steps(effect_t *effect, int64_t current_total_offset) {
   if (effect->effect_length == 0)
     return;
 
@@ -247,7 +266,7 @@ activate_new_steps(struct effect *effect, int64_t current_total_offset) {
   if (effect->effect_length <= current_total_offset) {
     // start any steps we might have missed at the end of previous cycle
     int step_number = 1;
-    for (struct step *step = effect->steps_head; step;
+    for (step_t *step = effect->steps_head; step;
          step = step->next, step_number++) {
 
       if ((step->out_end_offset - effect->effect_length) <= (current_offset)) {
@@ -261,7 +280,7 @@ activate_new_steps(struct effect *effect, int64_t current_total_offset) {
   }
 
   int step_number = 1;
-  for (struct step *step = effect->steps_head; step;
+  for (step_t *step = effect->steps_head; step;
        step = step->next, step_number++) {
 
     if (current_offset < step->offset) {
@@ -280,7 +299,7 @@ activate_new_steps(struct effect *effect, int64_t current_total_offset) {
 
 static void process_chase_effect(
     uint8_t tick_data[DMX_CHANNEL_COUNT],
-    struct effect *effect,
+    effect_t *effect,
     uint8_t effect_level,
     uint8_t rate_raw,
     int64_t ticks
@@ -292,7 +311,7 @@ static void process_chase_effect(
   activate_new_steps(effect, current_total_offset);
 
   int step_number = 1;
-  for (struct step *step = effect->steps_head; step;
+  for (step_t *step = effect->steps_head; step;
        step = step->next, step_number++) {
 
     if (!step->active) {
@@ -319,7 +338,7 @@ static void process_chase_effect(
     uint8_t step_fade_level_adjusted =
         multiply_levels(effect_level, step_fade_level);
 
-    for (struct step_channel *channel = step->channels_head; channel;
+    for (step_channel_t *channel = step->channels_head; channel;
          channel = channel->next) {
       uint16_t channel_index = channel->channel - 1;
 
@@ -331,7 +350,7 @@ static void process_chase_effect(
 
 static void process_effect(
     uint8_t tick_data[DMX_CHANNEL_COUNT],
-    struct effect *effect,
+    effect_t *effect,
     uint8_t effect_level,
     uint8_t rate_raw,
     int64_t ticks
@@ -363,7 +382,7 @@ static void dmxbox_effects_tick() {
   }
   taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
 
-  for (struct effect *effect = effects_head; effect; effect = effect->next) {
+  for (effect_t *effect = effects_head; effect; effect = effect->next) {
     uint8_t effect_level = 0;
     uint8_t rate_raw = 127;
 
