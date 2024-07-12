@@ -8,6 +8,10 @@
 
 static const char TAG[] = "dmxbox_api_effect_steps";
 
+static bool dmxbox_uri_is_segment_end(const char *str) {
+  return *str == '/' || *str == '\0';
+}
+
 static const char *dmxbox_uri_match_int(int *result, const char *uri) {
   if (!uri) {
     return NULL;
@@ -20,7 +24,7 @@ static const char *dmxbox_uri_match_int(int *result, const char *uri) {
     value *= 10;
     value += (*uri - '0');
   }
-  if (*uri == '/' || *uri == '\0') {
+  if (dmxbox_uri_is_segment_end(uri)) {
     *result = value;
     return uri;
   }
@@ -41,8 +45,8 @@ dmxbox_uri_match_component(const char *expected, const char *uri) {
       return NULL;
     }
   }
-  if (*uri == *expected) {
-    return (*uri == '/') || (*uri == '\0') ? uri : NULL;
+  if (dmxbox_uri_is_segment_end(uri)) {
+    return *expected == '\0' ? uri : NULL;
   }
   return NULL;
 }

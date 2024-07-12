@@ -48,7 +48,7 @@ static dmxbox_artnet_universe_t *dmxbox_artnet_universe_alloc() {
   return calloc(1, sizeof(dmxbox_artnet_universe_t));
 }
 
-static void dmxbox_artnet_universe_free(dmxbox_artnet_universe_t *data) {
+void dmxbox_artnet_universe_free(dmxbox_artnet_universe_t *data) {
   free(data);
 }
 
@@ -68,7 +68,7 @@ dmxbox_artnet_universe_advertisement_alloc() {
   return calloc(1, sizeof(dmxbox_artnet_universe_advertisement_t));
 }
 
-static void dmxbox_artnet_universe_advertisement_free(
+void dmxbox_artnet_universe_advertisement_free(
     dmxbox_artnet_universe_advertisement_t *data
 ) {
   free(data);

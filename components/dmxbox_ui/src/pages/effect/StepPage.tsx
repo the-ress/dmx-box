@@ -21,6 +21,8 @@ function StepChannel({ name }: StepChannelProps) {
     <div className="flex-none">
       <Input
         name={`${name}.level`}
+        min="0"
+        max="255"
         inputMode="numeric"
       />
     </div>

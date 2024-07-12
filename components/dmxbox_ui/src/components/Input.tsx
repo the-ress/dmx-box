@@ -5,6 +5,8 @@ export interface InputProps {
   placeholder?: string
   type?: 'text' | 'password' | 'number'
   maxLength?: number
+  min?: HTMLInputElement['min']
+  max?: HTMLInputElement['max']
   inputMode?: HTMLInputElement['inputMode']
 }
 
