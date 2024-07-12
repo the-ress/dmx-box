@@ -27,7 +27,9 @@ static const char *TAG = "effects";
 // actually microseconds, TODO rename or something
 static const uint32_t ticks_per_millisecond = 1000;
 
-static uint16_t effect_control_universe_address = 6;
+static const uint8_t default_effect_rate_raw = 127;
+
+static uint16_t effect_control_universe_address = 1;
 
 typedef struct step_channel {
   struct step_channel *next;
@@ -47,17 +49,7 @@ typedef struct step {
   struct step_channel *channels_head;
 
   // precalculated values
-  uint32_t time_ticks;
-  uint32_t in_ticks;
-  uint32_t dwell_ticks;
-  uint32_t out_ticks;
-
-  uint32_t in_end_ticks;
-  uint32_t dwell_end_ticks;
-  uint32_t out_end_ticks;
-
-  uint32_t offset;
-  uint32_t out_end_offset;
+  uint32_t offset_ticks;
 
   // internal state
   bool active;
@@ -73,7 +65,7 @@ typedef struct effect {
   step_t *steps_head;
 
   // precalculated values
-  uint32_t effect_length;
+  uint32_t effect_length_ticks;
 
   // internal state
   bool active;
@@ -98,11 +90,28 @@ static void effect_free(effect_t *data) { free(data); }
 
 static effect_t *effects_head = NULL;
 
-// last_data = calloc(DMX_CHANNEL_COUNT, sizeof(*last_data));
-// free(entry->last_data);
-
 portMUX_TYPE dmxbox_effects_spinlock = portMUX_INITIALIZER_UNLOCKED;
 uint8_t dmxbox_effects_data[DMX_CHANNEL_COUNT] = {0};
+
+static uint32_t ms_to_ticks(uint32_t value) {
+  return value * ticks_per_millisecond;
+}
+
+static uint32_t get_step_in_end_ticks(step_t *step) {
+  return ms_to_ticks(step->in);
+}
+
+static uint32_t get_step_dwell_end_ticks(step_t *step) {
+  return ms_to_ticks(step->in + step->dwell);
+}
+
+static uint32_t get_step_out_end_ticks(step_t *step) {
+  return ms_to_ticks(step->in + step->dwell + step->out);
+}
+
+static uint32_t get_step_out_end_offset(step_t *step) {
+  return step->offset_ticks + get_step_out_end_ticks(step);
+}
 
 void dmxbox_effects_initialize() {
   effect_t *effect1 = effect_alloc();
@@ -188,27 +197,15 @@ void dmxbox_effects_initialize() {
          step = step->next, step_number++) {
       step->active = false;
 
-      step->time_ticks = step->time * ticks_per_millisecond;
-      step->in_ticks = step->in * ticks_per_millisecond;
-      step->dwell_ticks = step->dwell * ticks_per_millisecond;
-      step->out_ticks = step->out * ticks_per_millisecond;
-
-      if ((step->in_ticks == 0) && (step->dwell_ticks == 0) &&
-          (step->out_ticks == 0)) {
-        step->dwell_ticks = step->time_ticks;
+      if ((step->in == 0) && (step->dwell == 0) && (step->out == 0)) {
+        step->dwell = step->time;
       }
 
-      step->in_end_ticks = step->in_ticks;
-      step->dwell_end_ticks = step->in_end_ticks + step->dwell_ticks;
-      step->out_end_ticks = step->dwell_end_ticks + step->out_ticks;
-
-      step->offset = current_offset;
-      step->out_end_offset = step->offset + step->out_end_ticks;
-
-      current_offset += step->time_ticks;
+      step->offset_ticks = current_offset;
+      current_offset += ms_to_ticks(step->time);
     }
 
-    effect->effect_length = current_offset;
+    effect->effect_length_ticks = current_offset;
   }
 }
 
@@ -230,6 +227,10 @@ static int rate_from_fader_level(uint8_t level) {
     return 0;
   }
 
+  // 2^((x - 127) / 30.035) * 104.5 - 4.5 works out to:
+  // around 1 at x=1
+  // 100 at x=127
+  // around 2000 at x=255
   return (int)(pow(2, ((double)level - 127) / 30.035) * 104.5 - 4.5);
 }
 
@@ -254,28 +255,30 @@ update_chase_effect_rate(effect_t *effect, int64_t ticks, int new_rate) {
 }
 
 static void activate_new_steps(effect_t *effect, int64_t current_total_offset) {
-  if (effect->effect_length == 0)
+  if (effect->effect_length_ticks == 0)
     return;
 
-  uint32_t current_offset = current_total_offset % effect->effect_length;
+  uint32_t current_offset = current_total_offset % effect->effect_length_ticks;
   int64_t current_offset_base = current_total_offset - current_offset;
 
   // TODO: check if firing multiple steps at once (even at the end of the cycle)
   // works
 
-  if (effect->effect_length <= current_total_offset) {
+  if (effect->effect_length_ticks <= current_total_offset) {
     // start any steps we might have missed at the end of previous cycle
     int step_number = 1;
     for (step_t *step = effect->steps_head; step;
          step = step->next, step_number++) {
 
-      if ((step->out_end_offset - effect->effect_length) <= (current_offset)) {
+      if ((get_step_out_end_offset(step) - effect->effect_length_ticks) <=
+          (current_offset)) {
         continue; // step already finished
       }
 
       step->active = true;
       step->total_offset =
-          (current_offset_base - effect->effect_length + step->offset);
+          (current_offset_base - effect->effect_length_ticks +
+           step->offset_ticks);
     }
   }
 
@@ -283,17 +286,17 @@ static void activate_new_steps(effect_t *effect, int64_t current_total_offset) {
   for (step_t *step = effect->steps_head; step;
        step = step->next, step_number++) {
 
-    if (current_offset < step->offset) {
+    if (current_offset < step->offset_ticks) {
       break; // it's not yet time to start this step (or any following steps)
     }
 
-    if (step->out_end_offset <= current_offset) {
+    if (get_step_out_end_offset(step) <= current_offset) {
       continue; // step already finished
     }
 
     step->active = true;
     // if step is already active from the previous cycle, this will restart it
-    step->total_offset = (current_offset_base + step->offset);
+    step->total_offset = (current_offset_base + step->offset_ticks);
   }
 }
 
@@ -322,14 +325,17 @@ static void process_chase_effect(
 
     uint8_t step_fade_level = 0;
 
-    if (current_step_offset < step->in_end_ticks) {
-      step_fade_level = (uint8_t)(255 * current_step_offset / step->in_ticks);
-    } else if (current_step_offset < step->dwell_end_ticks) {
-      step_fade_level = 255;
-    } else if (current_step_offset < step->out_end_ticks) {
+    if (current_step_offset < get_step_in_end_ticks(step)) {
       step_fade_level =
-          (uint8_t)(255 - (255 * (current_step_offset - step->dwell_end_ticks) /
-                           step->out_ticks));
+          (uint8_t)(255 * current_step_offset / ms_to_ticks(step->in));
+    } else if (current_step_offset < get_step_dwell_end_ticks(step)) {
+      step_fade_level = 255;
+    } else if (current_step_offset < get_step_out_end_ticks(step)) {
+      step_fade_level =
+          (uint8_t)(255 -
+                    (255 *
+                     (current_step_offset - get_step_dwell_end_ticks(step)) /
+                     ms_to_ticks(step->out)));
     } else {
       step->active = false;
       continue;
@@ -384,7 +390,7 @@ static void dmxbox_effects_tick() {
 
   for (effect_t *effect = effects_head; effect; effect = effect->next) {
     uint8_t effect_level = 0;
-    uint8_t rate_raw = 127;
+    uint8_t rate_raw = default_effect_rate_raw;
 
     if (effect->level_channel) {
       effect_level = control_data[effect->level_channel - 1];

@@ -11,11 +11,10 @@ ExternalProject_Add(
   dmxbox_ui_npm
   SOURCE_DIR "${NPM_PROJECT_DIR}"
 
-  # UPDATE_COMMAND npm install
-  UPDATE_COMMAND ""
+  UPDATE_COMMAND npm install
   CONFIGURE_COMMAND ""
 
-  BUILD_ALWAYS FALSE
+  BUILD_ALWAYS TRUE
   BUILD_IN_SOURCE TRUE
   BUILD_COMMAND npm run clean
   COMMAND npm run build
@@ -34,3 +33,4 @@ spiffs_create_partition_image(
   DEPS dmxbox_ui_npm
   FLASH_IN_PROJECT
 )
+
