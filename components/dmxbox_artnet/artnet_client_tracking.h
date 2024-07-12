@@ -1,4 +1,5 @@
-#include "lwip/sockets.h"
+#pragma once
+#include <lwip/sockets.h>
 #include <stdint.h>
 
 void dmxbox_artnet_client_tracking_initialize();

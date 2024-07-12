@@ -1,4 +1,6 @@
-#include "const.h"
+#pragma once
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 extern portMUX_TYPE dmxbox_artnet_spinlock;
 const uint8_t *dmxbox_artnet_get_native_universe_data();

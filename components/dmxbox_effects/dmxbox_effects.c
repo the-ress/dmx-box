@@ -8,11 +8,9 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "artnet/artnet.h"
-#include "const.h"
-#include "dmxbox_storage.h"
-#include "effects.h"
-#include "hashmap.h"
+#include "dmxbox_artnet.h"
+#include "dmxbox_const.h"
+#include "dmxbox_effects.h"
 
 static const char *TAG = "effects";
 

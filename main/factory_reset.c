@@ -1,7 +1,9 @@
 #include <driver/gpio.h>
 #include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
-#include "const.h"
+#include "dmxbox_const.h"
 #include "dmxbox_led.h"
 #include "dmxbox_storage.h"
 
@@ -10,11 +12,11 @@ static const char *TAG = "factory_reset";
 static bool pwr_led = true;
 
 void setup_reset_button(void) {
-  ESP_ERROR_CHECK(gpio_reset_pin(RESET_BUTTON_GPIO)); // enables pullup
-  ESP_ERROR_CHECK(gpio_set_direction(RESET_BUTTON_GPIO, GPIO_MODE_INPUT));
+  ESP_ERROR_CHECK(gpio_reset_pin(dmxbox_button_reset)); // enables pullup
+  ESP_ERROR_CHECK(gpio_set_direction(dmxbox_button_reset, GPIO_MODE_INPUT));
 }
 
-bool is_reset_button_pressed() { return !gpio_get_level(RESET_BUTTON_GPIO); }
+bool is_reset_button_pressed() { return !gpio_get_level(dmxbox_button_reset); }
 
 bool blink_and_wait(int blink_interval, int wait_time) {
   TickType_t xLastWakeTime = xTaskGetTickCount();

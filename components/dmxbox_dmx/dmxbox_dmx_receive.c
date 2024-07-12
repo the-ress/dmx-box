@@ -1,9 +1,12 @@
-#include "dmx_receive.h"
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include "const.h"
-#include "esp_log.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "dmxbox_const.h"
+#include "dmxbox_dmx_receive.h"
 #include "dmxbox_led.h"
+#include "esp_dmx.h"
 
 static const char *TAG = "dmx_receive";
 
@@ -24,7 +27,7 @@ static esp_err_t configure_dmx_in(void) {
   if (!dmx_set_pin(
           DMX_IN_NUM,
           DMX_PIN_NO_CHANGE,
-          DMX_IN_GPIO,
+          dmxbox_dmx_gpio_in,
           DMX_PIN_NO_CHANGE
       )) {
     return ESP_FAIL;

@@ -3,8 +3,10 @@
 #include <freertos/task.h>
 
 #include "const.h"
-#include "dmx_send.h"
+#include "dmxbox_const.h"
+#include "dmxbox_dmx_send.h"
 #include "dmxbox_led.h"
+#include "esp_dmx.h"
 
 #define DMX_SEND_PERIOD 30
 
@@ -25,7 +27,7 @@ static esp_err_t configure_dmx_out(void) {
 
   if (!dmx_set_pin(
           DMX_OUT_NUM,
-          DMX_OUT_GPIO,
+          dmxbox_dmx_gpio_out,
           DMX_PIN_NO_CHANGE,
           DMX_PIN_NO_CHANGE
       )) {

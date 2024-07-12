@@ -1,19 +1,18 @@
+#include <esp_err.h>
 #include <esp_log.h>
 #include <esp_netif.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
+#include <lwip/sockets.h>
 #include <sdkconfig.h>
 #include <stdint.h>
 
-#include "button.h"
-#include "esp_err.h"
-#include "lwip/sockets.h"
-
-#include "artnet.h"
 #include "artnet_client_tracking.h"
 #include "artnet_const.h"
-#include "const.h"
+#include "button.h"
+#include "dmxbox_artnet.h"
+#include "dmxbox_const.h"
 #include "dmxbox_led.h"
 #include "dmxbox_storage.h"
 #include "hashmap.h"
@@ -577,11 +576,11 @@ static void reset_artnet_state(void) {
 static void reset_button_loop(void *parameter) {
   button_event_t ev;
   QueueHandle_t button_events =
-      pulled_button_init(PIN_BIT(RESET_BUTTON_GPIO), GPIO_PULLUP_ONLY);
+      pulled_button_init(PIN_BIT(dmxbox_button_reset), GPIO_PULLUP_ONLY);
 
   while (1) {
     if (xQueueReceive(button_events, &ev, 1000 / portTICK_PERIOD_MS)) {
-      if ((ev.pin == RESET_BUTTON_GPIO) && (ev.event == BUTTON_DOWN)) {
+      if ((ev.pin == dmxbox_button_reset) && (ev.event == BUTTON_DOWN)) {
         ESP_LOGI(TAG, "Reset button pressed");
 
         taskENTER_CRITICAL(&dmxbox_artnet_spinlock);

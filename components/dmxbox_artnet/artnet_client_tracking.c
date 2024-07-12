@@ -2,7 +2,7 @@
 #include <esp_log.h>
 #include <stdint.h>
 
-#include "const.h"
+#include "dmxbox_const.h"
 #include "hashmap.h"
 
 static const char *TAG = "artnet_client_tracking";

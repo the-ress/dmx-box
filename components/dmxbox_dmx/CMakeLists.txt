@@ -1,10 +1,10 @@
 idf_component_register(
   SRCS
-    wifi.c
-    wifi_scan.c
+    dmxbox_dmx_receive.c
+    dmxbox_dmx_send.c
   INCLUDE_DIRS include
   REQUIRES
+    dmxbox_const
     dmxbox_led
-    dmxbox_storage
-    esp_wifi
+    esp_dmx
 )

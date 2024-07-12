@@ -1,3 +1,4 @@
+#pragma once
 #include <stdint.h>
 
 #define ARTNET_PORT 6454

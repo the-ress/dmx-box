@@ -6,17 +6,16 @@
 #include <nvs_flash.h>
 #include <string.h>
 
-#include "artnet/artnet.h"
-#include "const.h"
-#include "dmx/dmx_receive.h"
-#include "dmx/dmx_send.h"
+#include "dmxbox_artnet.h"
+#include "dmxbox_dmx_receive.h"
+#include "dmxbox_dmx_send.h"
+#include "dmxbox_dns.h"
+#include "dmxbox_effects.h"
 #include "dmxbox_httpd.h"
 #include "dmxbox_led.h"
+#include "dmxbox_recalc.h"
 #include "dmxbox_storage.h"
-#include "dns.h"
-#include "effects/effects.h"
 #include "factory_reset.h"
-#include "recalc.h"
 #include "sdkconfig.h"
 #include "webserver.h"
 #include "wifi.h"

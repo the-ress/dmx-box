@@ -8,7 +8,7 @@ idf_component_register(
     ws.c
     ws_ap_found.c
   INCLUDE_DIRS include
-  REQUIRES 
+  REQUIRES
     dmxbox_storage
     dmxbox_wifi
     dmxbox_httpd
@@ -16,5 +16,3 @@ idf_component_register(
     json
     vfs
 )
-
-

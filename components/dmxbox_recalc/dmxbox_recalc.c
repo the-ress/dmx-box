@@ -1,13 +1,13 @@
 #include <esp_log.h>
 #include <string.h>
 
-#include "artnet/artnet.h"
-#include "const.h"
-#include "dmx/dmx_receive.h"
-#include "dmx/dmx_send.h"
+#include "dmxbox_artnet.h"
+#include "dmxbox_const.h"
+#include "dmxbox_dmx_receive.h"
+#include "dmxbox_dmx_send.h"
+#include "dmxbox_effects.h"
 #include "dmxbox_led.h"
-#include "effects/effects.h"
-#include "recalc.h"
+#include "dmxbox_recalc.h"
 
 static const char *TAG = "recalc";
 

@@ -1,3 +1,4 @@
+#pragma once
 #include "esp_dmx.h"
 
 extern portMUX_TYPE dmxbox_dmx_out_spinlock;
