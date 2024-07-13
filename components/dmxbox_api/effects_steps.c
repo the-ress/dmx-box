@@ -53,26 +53,18 @@ esp_err_t dmxbox_api_effect_step_get(
     uint16_t step_id
 ) {
   dmxbox_storage_effect_step_t *effect_step = NULL;
-  cJSON *json = NULL;
-
-  esp_err_t ret = dmxbox_storage_effect_step_get(
-      effect_id,
-      step_id,
-      &effect_step
-  );
-
-  if (ret == ESP_ERR_NOT_FOUND) {
-    ESP_GOTO_ON_ERROR(
-        httpd_resp_send_404(req),
-        exit,
-        TAG,
-        "failed to send 404"
-    );
-    return ESP_OK;
+  esp_err_t ret =
+      dmxbox_storage_effect_step_get(effect_id, step_id, &effect_step);
+  switch (ret) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_NOT_FOUND:
+    return httpd_resp_send_404(req);
+  default:
+    return ret;
   }
-  ESP_GOTO_ON_ERROR(ret, exit, TAG, "failed to read effect step from storage");
 
-  json = dmxbox_effect_step_to_json(effect_step);
+  cJSON *json = dmxbox_effect_step_to_json(effect_step);
   if (!json) {
     ESP_LOGE(TAG, "failed to serialize json");
     goto exit;
@@ -95,6 +87,23 @@ exit:
   return ret;
 }
 
+esp_err_t dmxbox_api_effect_step_put(
+    httpd_req_t *req,
+    uint16_t effect_id,
+    uint16_t step_id
+) {
+  esp_err_t ret = dmxbox_storage_effect_step_get(effect_id, step_id, NULL);
+  switch (ret) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_NOT_FOUND:
+    return httpd_resp_send_404(req);
+  default:
+    return ret;
+  }
+  return ESP_OK;
+}
+
 esp_err_t dmxbox_api_effect_step_endpoint(
     httpd_req_t *req,
     uint16_t effect_id,
@@ -103,6 +112,7 @@ esp_err_t dmxbox_api_effect_step_endpoint(
   if (req->method == HTTP_GET) {
     return dmxbox_api_effect_step_get(req, effect_id, step_id);
   } else if (req->method == HTTP_PUT) {
+  } else {
     ESP_RETURN_ON_ERROR(
         httpd_resp_set_status(req, "405 Method Not Allowed"),
         TAG,

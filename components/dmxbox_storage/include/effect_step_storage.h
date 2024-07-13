@@ -1,8 +1,8 @@
 #pragma once
+#include "universe_storage.h"
 #include <esp_err.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "universe_storage.h"
 
 typedef struct dmxbox_storage_channel {
   dmxbox_storage_universe_t universe;
@@ -26,7 +26,8 @@ typedef struct dmxbox_storage_effect_step {
 dmxbox_storage_effect_step_t *
 dmxbox_storage_effect_step_alloc(size_t channel_count);
 
-// caller must free() the result if ESP_OK
+// result can be NULL
+// caller must free() *result if they provided one and this returns ESP_OK
 esp_err_t dmxbox_storage_effect_step_get(
     uint16_t effect_id,
     uint16_t step_id,

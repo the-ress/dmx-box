@@ -78,13 +78,13 @@ bool dmxbox_storage_get_str(
   return dmxbox_storage_check_error(key, err);
 }
 
-esp_err_t dmxbox_storage_get_blob_malloc(
+esp_err_t dmxbox_storage_get_blob_from_storage(
     nvs_handle_t storage,
     const char *key,
     size_t *size,
     void **result
 ) {
-  if (!size || !result) {
+  if (!size) {
     return ESP_ERR_INVALID_ARG;
   }
 
@@ -94,6 +94,10 @@ esp_err_t dmxbox_storage_get_blob_malloc(
       "failed to get size of blob '%s'",
       key
   );
+
+  if (!result) {
+    return ESP_OK;
+  }
 
   esp_err_t ret = ESP_OK;
   void *buffer = malloc(*size);
@@ -118,5 +122,26 @@ free_buffer:
     free(buffer);
   }
 
+  return ret;
+}
+
+esp_err_t dmxbox_storage_get_blob(
+    const char *ns,
+    const char *key,
+    size_t *size,
+    void **buffer
+) {
+  nvs_handle_t storage;
+  ESP_RETURN_ON_ERROR(
+      nvs_open(ns, NVS_READONLY, &storage),
+      TAG,
+      "failed to open NVS"
+  );
+  esp_err_t ret =
+      dmxbox_storage_get_blob_from_storage(storage, key, size, buffer);
+  nvs_close(storage);
+  if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    ret = ESP_ERR_NOT_FOUND;
+  }
   return ret;
 }

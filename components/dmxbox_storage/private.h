@@ -23,9 +23,19 @@ esp_err_t dmxbox_storage_set_blob(
 );
 
 // caller must free() the *buffer when ESP_OK
-esp_err_t dmxbox_storage_get_blob_malloc(
+esp_err_t dmxbox_storage_get_blob_from_storage(
     nvs_handle_t storage,
     const char *key,
     size_t *size,
     void **buffer
 );
+// caller must free() the *buffer when ESP_OK
+esp_err_t dmxbox_storage_get_blob(
+    const char *ns,
+    const char *key,
+    size_t *size,
+    void **buffer
+);
+
+esp_err_t
+dmxbox_storage_get_blob_size(const char *ns, const char *key, size_t *size);
