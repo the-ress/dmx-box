@@ -48,9 +48,7 @@ static dmxbox_artnet_universe_t *dmxbox_artnet_universe_alloc() {
   return calloc(1, sizeof(dmxbox_artnet_universe_t));
 }
 
-void dmxbox_artnet_universe_free(dmxbox_artnet_universe_t *data) {
-  free(data);
-}
+void dmxbox_artnet_universe_free(dmxbox_artnet_universe_t *data) { free(data); }
 
 #define MAX_UNIVERSES_IN_POLL_REPLY 4
 
@@ -121,10 +119,10 @@ static dmxbox_artnet_universe_advertisement_t *find_available_advertisement(
 
 static void initialize_universes() {
   dmxbox_artnet_universe_t *universe1 = dmxbox_artnet_universe_alloc();
-  universe1->address = 5;
+  universe1->address = 0;
 
   dmxbox_artnet_universe_t *universe2 = dmxbox_artnet_universe_alloc();
-  universe2->address = 6;
+  universe2->address = 1;
 
   universe1->next = universe2;
 
@@ -274,18 +272,10 @@ static void send_poll_reply_packet(
   reply.status2 =
       (1 << 3); // Node supports 15-bit Port-Address (Art-Net 3 or 4).
 
-  snprintf(
-      (char *)reply.shortname,
-      sizeof(reply.shortname),
-      "%s",
-      dmxbox_get_hostname()
-  );
-  snprintf(
-      (char *)reply.longname,
-      sizeof(reply.longname),
-      "%s",
-      dmxbox_get_hostname()
-  );
+  const char *hostname = dmxbox_get_hostname();
+  snprintf((char *)reply.shortname, sizeof(reply.shortname), "%s", hostname);
+  snprintf((char *)reply.longname, sizeof(reply.longname), "%s", hostname);
+
   snprintf(
       (char *)reply.nodereport,
       sizeof(reply.nodereport),

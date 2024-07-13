@@ -2,6 +2,7 @@
 #include "esp_netif.h"
 #include "esp_system.h"
 
+#include "dmxbox_storage.h"
 #include "lwip/err.h"
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
@@ -144,7 +145,8 @@ static int parse_dns_request(
     );
 
     if (qd_type == QD_TYPE_A) {
-      if (strcasecmp(CONFIG_LWIP_LOCAL_HOSTNAME, name) == 0) {
+      if (strcasecmp(dmxbox_get_default_hostname(), name) == 0 ||
+          strcasecmp(dmxbox_get_hostname(), name) == 0) {
         ESP_LOGI(TAG, "Received request for %s; answering with own IP", name);
 
         dns_answer_t *answer = (dns_answer_t *)cur_ans_ptr;

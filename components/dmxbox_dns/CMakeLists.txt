@@ -1,5 +1,7 @@
 idf_component_register(
   SRCS dmxbox_dns.c
   INCLUDE_DIRS include
-  REQUIRES esp_netif
+  REQUIRES
+    dmxbox_storage
+    esp_netif
 )

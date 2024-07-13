@@ -9,6 +9,7 @@ void dmxbox_storage_factory_reset(void);
 uint8_t dmxbox_get_first_run_completed(void);
 uint8_t dmxbox_get_sta_mode_enabled(void);
 const char *dmxbox_get_hostname(void);
+const char *dmxbox_get_default_hostname(void);
 
 void dmxbox_set_first_run_completed(uint8_t value);
 void dmxbox_set_sta_mode_enabled(uint8_t value);
