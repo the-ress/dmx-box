@@ -24,33 +24,79 @@ static cJSON *dmxbox_api_channel_to_json(dmxbox_storage_channel_t c) {
   return size < sizeof(buffer) ? cJSON_CreateString(buffer) : NULL;
 }
 
-static cJSON *dmxbox_api_channel_level_to_json(
-    const dmxbox_storage_channel_level_t *channel_level
+typedef struct dmxbox_serializer_entry {
+  int cjson_type;
+  const char *name;
+  size_t offset;
+} dmxbox_serializer_entry_t;
+
+#define BEGIN_DMXBOX_API_SERIALIZER(name, type)                                \
+  static cJSON *dmxbox_api_##name##_to_json(const type *object) {              \
+    cJSON *json = cJSON_CreateObject();                                        \
+    if (!json) {                                                               \
+      return NULL;                                                             \
+    }
+
+#define DMXBOX_API_SERIALIZE_NUMBER(name)                                      \
+  if (!cJSON_AddNumberToObject(json, #name, object->name)) {                   \
+    goto error;                                                                \
+  }
+
+#define DMXBOX_API_SERIALIZE_ITEM(name, serializer)                            \
+  do {                                                                         \
+    cJSON *item = serializer(object->name);                                    \
+    if (!item) {                                                               \
+      goto error;                                                              \
+    }                                                                          \
+    if (!cJSON_AddItemToObjectCS(json, #name, item)) {                         \
+      cJSON_free(item);                                                        \
+      goto error;                                                              \
+    }                                                                          \
+  } while (false)
+
+#define END_DMXBOX_API_SERIALIZER()                                            \
+  return json;                                                                 \
+  error:                                                                       \
+  cJSON_free(json);                                                            \
+  return NULL;                                                                 \
+  }
+
+BEGIN_DMXBOX_API_SERIALIZER(channel_level, dmxbox_storage_channel_level_t)
+DMXBOX_API_SERIALIZE_ITEM(channel, dmxbox_api_channel_to_json);
+DMXBOX_API_SERIALIZE_NUMBER(level);
+END_DMXBOX_API_SERIALIZER()
+
+BEGIN_DMXBOX_API_SERIALIZER(effect_step_header, dmxbox_storage_effect_step_t)
+DMXBOX_API_SERIALIZE_NUMBER(time);
+DMXBOX_API_SERIALIZE_NUMBER(in);
+DMXBOX_API_SERIALIZE_NUMBER(dwell);
+DMXBOX_API_SERIALIZE_NUMBER(out);
+END_DMXBOX_API_SERIALIZER()
+
+static cJSON *dmxbox_api_effect_step_to_json(
+    const dmxbox_storage_effect_step_t *object,
+    size_t channel_count
 ) {
-  cJSON *json = cJSON_CreateObject();
-  if (!json) {
-    return NULL;
+  cJSON *json = dmxbox_api_effect_step_header_to_json(object);
+
+  cJSON *channels = cJSON_AddArrayToObject(json, "channels");
+  if (!channels) {
+    goto exit;
   }
 
-  cJSON *channel = dmxbox_api_channel_to_json(channel_level->channel);
-  if (!channel) {
-    goto error;
+  for (size_t i = 0; i < channel_count; i++) {
+    cJSON *channel_level =
+        dmxbox_api_channel_level_to_json(&object->channels[i]);
+    if (!cJSON_AddItemToArray(channels, channel_level)) {
+      cJSON_free(channel_level);
+      goto exit;
+    }
   }
-
-  if (!cJSON_AddItemToObjectCS(json, "channel", channel)) {
-    cJSON_free(channel);
-    goto error;
-  }
-
-  if (!cJSON_AddNumberToObject(json, "level", channel_level->level)) {
-    goto error;
-  }
-
   return json;
 
-error:
+exit:
   cJSON_free(json);
-  return json;
+  return NULL;
 }
 
 esp_err_t dmxbox_api_effect_step_get(
@@ -81,40 +127,10 @@ esp_err_t dmxbox_api_effect_step_get(
   }
   ESP_GOTO_ON_ERROR(ret, exit, TAG, "failed to read effect step from storage");
 
-  json = cJSON_CreateObject();
+  json = dmxbox_api_effect_step_to_json(effect_step, channel_count);
   if (!json) {
-    ESP_LOGE(TAG, "failed to allocate json");
+    ESP_LOGE(TAG, "failed to serialize json");
     goto exit;
-  }
-
-  if (!cJSON_AddNumberToObject(json, "time", effect_step->time)) {
-    goto exit;
-  }
-
-  if (!cJSON_AddNumberToObject(json, "in", effect_step->in)) {
-    goto exit;
-  }
-
-  if (!cJSON_AddNumberToObject(json, "dwell", effect_step->dwell)) {
-    goto exit;
-  }
-
-  if (!cJSON_AddNumberToObject(json, "out", effect_step->out)) {
-    goto exit;
-  }
-
-  cJSON *channels = cJSON_AddArrayToObject(json, "channels");
-  if (!channels) {
-    goto exit;
-  }
-
-  for (size_t i = 0; i < channel_count; i++) {
-    cJSON *channel_level =
-        dmxbox_api_channel_level_to_json(&effect_step->channels[i]);
-    if (!cJSON_AddItemToArray(channels, channel_level)) {
-      cJSON_free(channel_level);
-      goto exit;
-    }
   }
 
   ESP_GOTO_ON_ERROR(
@@ -141,7 +157,7 @@ esp_err_t dmxbox_api_effect_step_endpoint(
 ) {
   if (req->method == HTTP_GET) {
     return dmxbox_api_effect_step_get(req, effect_id, step_id);
-  } else {
+  } else if (req->method == HTTP_PUT) {
     ESP_RETURN_ON_ERROR(
         httpd_resp_set_status(req, "405 Method Not Allowed"),
         TAG,
