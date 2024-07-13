@@ -90,6 +90,9 @@ esp_err_t dmxbox_storage_effect_step_get(
 
 close_storage:
   nvs_close(storage);
+  if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    ret = ESP_ERR_NOT_FOUND;
+  }
   return ret;
 }
 

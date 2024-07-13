@@ -15,10 +15,14 @@ void dmxbox_set_first_run_completed(uint8_t value);
 void dmxbox_set_sta_mode_enabled(uint8_t value);
 bool dmxbox_set_hostname(const char *value);
 
-typedef struct dmxbox_storage_channel_level {
+typedef struct dmxbox_storage_channel {
   unsigned universe : 15;
-  unsigned channel : 9;
-  unsigned level : 8;
+  unsigned index : 9;
+} dmxbox_storage_channel_t;
+
+typedef struct dmxbox_storage_channel_level {
+  dmxbox_storage_channel_t channel;
+  uint8_t level;
 } dmxbox_storage_channel_level_t;
 
 typedef struct dmxbox_storage_effect_step {

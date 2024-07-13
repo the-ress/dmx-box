@@ -136,10 +136,10 @@ void dmxbox_effects_initialize() {
   step1->dwell = 250;
   step1->out = 250;
 
-  step1->channels[0].channel = 1;
+  step1->channels[0].channel.index = 1;
   step1->channels[0].level = 255;
 
-  step1->channels[1].channel = 2;
+  step1->channels[1].channel.index = 2;
   step1->channels[1].level = 255;
 
   step2->time = 1000;
@@ -147,9 +147,9 @@ void dmxbox_effects_initialize() {
   step2->dwell = 250;
   step2->out = 250;
 
-  step2->channels[0].channel = 8;
+  step2->channels[0].channel.index = 8;
   step2->channels[0].level = 255;
-  step2->channels[1].channel = 10;
+  step2->channels[1].channel.index = 10;
   step2->channels[1].level = 255;
 
   step3->time = 1000;
@@ -157,15 +157,15 @@ void dmxbox_effects_initialize() {
   step3->dwell = 250;
   step3->out = 250;
 
-  step3->channels[0].channel = 15;
+  step3->channels[0].channel.index = 15;
   step3->channels[0].level = 255;
-  step3->channels[1].channel = 16;
+  step3->channels[1].channel.index = 16;
   step3->channels[1].level = 255;
-  step3->channels[2].channel = 17;
+  step3->channels[2].channel.index = 17;
   step3->channels[2].level = 255;
-  step3->channels[3].channel = 18;
+  step3->channels[3].channel.index = 18;
   step3->channels[3].level = 255;
-  step3->channels[4].channel = 19;
+  step3->channels[4].channel.index = 19;
   step3->channels[4].level = 255;
 
   uint16_t effect_id = 1;
@@ -211,7 +211,7 @@ void dmxbox_effects_initialize() {
     step_channel_t *channels_tail = NULL;
     for (size_t i = 0; i < channel_count; i++) {
       step_channel_t *channel = step_channel_alloc();
-      channel->channel = step_data->channels[i].channel;
+      channel->channel = step_data->channels[i].channel.index;
       channel->level = step_data->channels[i].level;
 
       ESP_LOGI(
