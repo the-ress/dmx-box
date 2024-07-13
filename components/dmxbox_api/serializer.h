@@ -167,5 +167,5 @@ bool dmxbox_deserialize_trailing_array(
     return dmxbox_deserialize_object_alloc(name##_serializer, json);           \
   }                                                                            \
   bool dmxbox_##name##_from_json(const cJSON *json, type *object) {            \
-    return dmxbox_deserialize_object(name##_serializer, json, object);                 \
+    return dmxbox_deserialize_object(name##_serializer, json, object);         \
   }
