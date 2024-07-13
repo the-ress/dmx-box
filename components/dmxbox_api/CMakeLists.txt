@@ -7,6 +7,7 @@ idf_component_register(
     effects.c
     effects_steps.c
     settings_sta.c
+    serializer.c
     ws.c
     ws_ap_found.c
   INCLUDE_DIRS include

@@ -1,3 +1,4 @@
+#include "effect_step_storage.h"
 #include "dmxbox_storage.h"
 #include "esp_err.h"
 #include "nvs.h"
@@ -23,12 +24,12 @@ static esp_err_t dmxbox_storage_effect_step_key(
   return ESP_OK;
 }
 
-size_t dmxbox_storage_effect_step_size(size_t channel_count) {
+static size_t dmxbox_storage_effect_step_size(size_t channel_count) {
   return sizeof(dmxbox_storage_effect_step_t) +
          (channel_count - 1) * sizeof(dmxbox_storage_channel_level_t);
 }
 
-size_t dmxbox_storage_effect_step_channel_count(size_t blob_size) {
+static size_t dmxbox_storage_effect_step_channel_count(size_t blob_size) {
   static const size_t header_size = sizeof(dmxbox_storage_effect_step_t) -
                                     sizeof(dmxbox_storage_channel_level_t);
   if (blob_size < header_size) {
@@ -40,20 +41,22 @@ size_t dmxbox_storage_effect_step_channel_count(size_t blob_size) {
 dmxbox_storage_effect_step_t *
 dmxbox_storage_effect_step_alloc(size_t channel_count) {
   size_t size = dmxbox_storage_effect_step_size(channel_count);
-  return calloc(1, size);
+  dmxbox_storage_effect_step_t *effect_step = calloc(1, size);
+  if (effect_step) {
+    effect_step->channel_count = channel_count;
+  }
+  return effect_step;
 }
 
 esp_err_t dmxbox_storage_effect_step_get(
     uint16_t effect_id,
     uint16_t step_id,
-    size_t *channel_count,
     dmxbox_storage_effect_step_t **result
 ) {
-  if (!channel_count || !result) {
+  if (!result) {
     return ESP_ERR_INVALID_ARG;
   }
 
-  *channel_count = 0;
   *result = NULL;
 
   char key[NVS_KEY_NAME_MAX_SIZE];
@@ -76,7 +79,6 @@ esp_err_t dmxbox_storage_effect_step_get(
   void *buffer = NULL;
 
   size_t size;
-
   ESP_GOTO_ON_ERROR(
       dmxbox_storage_get_blob_malloc(storage, key, &size, &buffer),
       close_storage,
@@ -86,7 +88,21 @@ esp_err_t dmxbox_storage_effect_step_get(
   );
 
   *result = buffer;
-  *channel_count = dmxbox_storage_effect_step_channel_count(size);
+  size_t channel_count_from_size =
+      dmxbox_storage_effect_step_channel_count(size);
+  if (channel_count_from_size != (*result)->channel_count) {
+    ESP_LOGE(
+        TAG,
+        "effect %u step %u corrupted. blob size %u bytes = %u channels, "
+        "declared channel count %u. deleting all channels",
+        effect_id,
+        step_id,
+        size,
+        channel_count_from_size,
+        (*result)->channel_count
+    );
+    (*result)->channel_count = 0;
+  }
 
 close_storage:
   nvs_close(storage);
@@ -99,11 +115,10 @@ close_storage:
 esp_err_t dmxbox_storage_effect_step_set(
     uint16_t effect_id,
     uint16_t step_id,
-    size_t channel_count,
     const dmxbox_storage_effect_step_t *value
 ) {
   esp_err_t ret = ESP_OK;
-  size_t size = dmxbox_storage_effect_step_size(channel_count);
+  size_t size = dmxbox_storage_effect_step_size(value->channel_count);
 
   nvs_handle_t storage;
   ESP_RETURN_ON_ERROR(
