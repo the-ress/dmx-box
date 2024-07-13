@@ -2,7 +2,7 @@
 #include <lwip/sockets.h>
 #include <stdint.h>
 
-void dmxbox_artnet_client_tracking_initialize();
+void dmxbox_artnet_client_tracking_init();
 void dmxbox_artnet_client_tracking_reset();
 
 bool dmxbox_artnet_client_tracking_get_last_data(

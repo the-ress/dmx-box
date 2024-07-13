@@ -168,11 +168,11 @@ static void initialize_universe_advertisements() {
   universe_advertisements_head = head;
 }
 
-void dmxbox_artnet_initialize(void) {
+void dmxbox_artnet_init() {
   ap_context.interface = wifi_get_ap_interface();
   sta_context.interface = wifi_get_sta_interface();
 
-  dmxbox_artnet_client_tracking_initialize();
+  dmxbox_artnet_client_tracking_init();
 
   initialize_universes();
   initialize_universe_advertisements();
@@ -553,7 +553,7 @@ static void handle_packet(
   }
 }
 
-static void reset_artnet_state(void) {
+static void reset_artnet_state() {
   taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
   for (dmxbox_artnet_universe_t *universe = universes_head; universe;
        universe = universe->next) {

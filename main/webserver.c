@@ -6,7 +6,7 @@
 
 static const char *TAG = "dmxbox_webserver";
 
-esp_err_t dmxbox_webserver_start(void) {
+esp_err_t dmxbox_webserver_start() {
   httpd_handle_t server = NULL;
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.task_priority = 1;

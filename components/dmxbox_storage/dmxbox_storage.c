@@ -16,10 +16,10 @@ static uint8_t first_run_completed_ = 0;
 static uint8_t sta_mode_enabled_ = 0;
 static char hostname_[16] = "dmx-box";
 
-uint8_t dmxbox_get_first_run_completed(void) { return first_run_completed_; }
-uint8_t dmxbox_get_sta_mode_enabled(void) { return sta_mode_enabled_; }
-const char *dmxbox_get_hostname(void) { return hostname_; }
-const char *dmxbox_get_default_hostname(void) { return default_hostname; }
+uint8_t dmxbox_get_first_run_completed() { return first_run_completed_; }
+uint8_t dmxbox_get_sta_mode_enabled() { return sta_mode_enabled_; }
+const char *dmxbox_get_hostname() { return hostname_; }
+const char *dmxbox_get_default_hostname() { return default_hostname; }
 
 void dmxbox_set_first_run_completed(uint8_t value) {
   first_run_completed_ = value;
@@ -39,7 +39,7 @@ bool dmxbox_set_hostname(const char *value) {
   return true;
 }
 
-void dmxbox_storage_init(void) {
+void dmxbox_storage_init() {
   ESP_LOGI(TAG, "Initializing storage");
 
   esp_err_t err = nvs_flash_init();
@@ -63,7 +63,7 @@ void dmxbox_storage_init(void) {
   nvs_close(storage);
 }
 
-void dmxbox_storage_factory_reset(void) {
+void dmxbox_storage_factory_reset() {
   ESP_LOGI(TAG, "Erasing storage");
   ESP_ERROR_CHECK(nvs_flash_erase());
 }

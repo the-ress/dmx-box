@@ -34,10 +34,13 @@ static const char *TAG = "dmxbox_wifi";
 #define CONFIG_WIFI_STA_MAXIMUM_RETRY 5
 
 dmxbox_wifi_config_t dmxbox_wifi_config = {
-    .ap = {.ssid = "DmxBox_",
-           .channel = 6,
-           .auth_mode = WIFI_AUTH_WPA2_WPA3_PSK,
-           .password = "cue-gobo-fresnel"},
+    .ap =
+        {
+            .ssid = "DmxBox_",
+            .channel = 6,
+            .auth_mode = WIFI_AUTH_WPA2_WPA3_PSK,
+            .password = "cue-gobo-fresnel",
+        },
     .sta =
         {
             .ssid = "",
@@ -54,20 +57,20 @@ static bool is_in_disconnect = false;
 static esp_netif_t *ap_interface;
 static esp_netif_t *sta_interface;
 
-static esp_err_t dmxbox_wifi_disconnect(void) {
+static esp_err_t dmxbox_wifi_disconnect() {
   is_in_disconnect = true;
   esp_err_t ret = esp_wifi_disconnect();
   is_in_disconnect = false;
   return ret;
 }
 
-static void dmxbox_wifi_on_ap_start(void) {
+static void dmxbox_wifi_on_ap_start() {
   ESP_LOGI(TAG, "AP started");
   xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_stopped);
   xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_started);
 }
 
-static void dmxbox_wifi_on_ap_stop(void) {
+static void dmxbox_wifi_on_ap_stop() {
   ESP_LOGI(TAG, "AP stopped");
   xEventGroupClearBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_started);
   xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_ap_stopped);
@@ -75,8 +78,12 @@ static void dmxbox_wifi_on_ap_stop(void) {
 
 static void
 dmxbox_wifi_on_ap_staconnected(const wifi_event_ap_staconnected_t *event) {
-  ESP_LOGI(TAG, "station " MACSTR " join, AID=%d", MAC2STR(event->mac),
-           event->aid);
+  ESP_LOGI(
+      TAG,
+      "station " MACSTR " join, AID=%d",
+      MAC2STR(event->mac),
+      event->aid
+  );
 
   dmxbox_led_set(dmxbox_led_ap, 1);
 
@@ -85,8 +92,12 @@ dmxbox_wifi_on_ap_staconnected(const wifi_event_ap_staconnected_t *event) {
 
 static void
 dmxbox_wifi_on_ap_stadisconnected(wifi_event_ap_stadisconnected_t *event) {
-  ESP_LOGI(TAG, "station " MACSTR " leave, AID=%d", MAC2STR(event->mac),
-           event->aid);
+  ESP_LOGI(
+      TAG,
+      "station " MACSTR " leave, AID=%d",
+      MAC2STR(event->mac),
+      event->aid
+  );
 
   wifi_sta_list_t sta_list;
   esp_wifi_ap_get_sta_list(&sta_list);
@@ -132,9 +143,12 @@ static void dmxbox_wifi_on_sta_got_ip(const ip_event_got_ip_t *event) {
   xEventGroupSetBits(dmxbox_wifi_event_group, dmxbox_wifi_sta_connected);
 }
 
-static void dmxbox_wifi_on_wifi_event(void *arg,                   // NULL
-                                      esp_event_base_t event_base, // WIFI_EVENT
-                                      int32_t event_id, void *event_data) {
+static void dmxbox_wifi_on_wifi_event(
+    void *arg,                   // NULL
+    esp_event_base_t event_base, // WIFI_EVENT
+    int32_t event_id,
+    void *event_data
+) {
   switch (event_id) {
   case WIFI_EVENT_AP_START:
     dmxbox_wifi_on_ap_start();
@@ -169,9 +183,12 @@ static void dmxbox_wifi_on_wifi_event(void *arg,                   // NULL
   }
 }
 
-static void dmxbox_wifi_on_ip_event(void *arg,                   // NULL
-                                    esp_event_base_t event_base, // IP_EVENT
-                                    int32_t event_id, void *event_data) {
+static void dmxbox_wifi_on_ip_event(
+    void *arg,                   // NULL
+    esp_event_base_t event_base, // IP_EVENT
+    int32_t event_id,
+    void *event_data
+) {
   switch (event_id) {
   case IP_EVENT_STA_GOT_IP:
     dmxbox_wifi_on_sta_got_ip(event_data);
@@ -182,7 +199,18 @@ static void dmxbox_wifi_on_ip_event(void *arg,                   // NULL
   }
 }
 
-static void dmxbox_wifi_init(void) {
+static void dmxbox_wifi_init() {
+  uint8_t mac[6];
+  ESP_ERROR_CHECK(esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP));
+  sprintf(
+      (char *)wifi_ap_config.ap.ssid,
+      "%s%02x%02x%02x",
+      CONFIG_WIFI_AP_SSID,
+      mac[3],
+      mac[4],
+      mac[5]
+  );
+
   dmxbox_wifi_event_group = xEventGroupCreate();
 
   ESP_ERROR_CHECK(esp_netif_init());
@@ -202,29 +230,51 @@ static void dmxbox_wifi_init(void) {
   ESP_LOGI(TAG, "Setting STA hostname to '%s'", hostname);
   ESP_ERROR_CHECK(esp_netif_set_hostname(sta_interface, hostname));
 
-  ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
-                                             &dmxbox_wifi_on_wifi_event, NULL));
+  ESP_ERROR_CHECK(esp_event_handler_register(
+      WIFI_EVENT,
+      ESP_EVENT_ANY_ID,
+      &dmxbox_wifi_on_wifi_event,
+      NULL
+  ));
 
-  ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
-                                             &dmxbox_wifi_on_ip_event, NULL));
+  ESP_ERROR_CHECK(esp_event_handler_register(
+      IP_EVENT,
+      IP_EVENT_STA_GOT_IP,
+      &dmxbox_wifi_on_ip_event,
+      NULL
+  ));
 
   // disable wifi power save to improve performance
   esp_wifi_set_ps(WIFI_PS_NONE);
 }
 
-void refresh_cached_wifi_config(const wifi_config_t *wifi_ap_config,
-                                const wifi_config_t *wifi_sta_config) {
-  memcpy(dmxbox_wifi_config.ap.ssid, wifi_ap_config->ap.ssid,
-         sizeof(dmxbox_wifi_config.ap.ssid));
-  memcpy(dmxbox_wifi_config.ap.password, wifi_ap_config->ap.password,
-         sizeof(dmxbox_wifi_config.ap.password));
+void refresh_cached_wifi_config(
+    const wifi_config_t *wifi_ap_config,
+    const wifi_config_t *wifi_sta_config
+) {
+  memcpy(
+      dmxbox_wifi_config.ap.ssid,
+      wifi_ap_config->ap.ssid,
+      sizeof(dmxbox_wifi_config.ap.ssid)
+  );
+  memcpy(
+      dmxbox_wifi_config.ap.password,
+      wifi_ap_config->ap.password,
+      sizeof(dmxbox_wifi_config.ap.password)
+  );
   dmxbox_wifi_config.ap.auth_mode = wifi_ap_config->ap.authmode;
   dmxbox_wifi_config.ap.channel = wifi_ap_config->ap.channel;
 
-  memcpy(dmxbox_wifi_config.sta.ssid, wifi_sta_config->sta.ssid,
-         sizeof(dmxbox_wifi_config.sta.ssid));
-  memcpy(dmxbox_wifi_config.sta.password, wifi_sta_config->sta.password,
-         sizeof(dmxbox_wifi_config.sta.password));
+  memcpy(
+      dmxbox_wifi_config.sta.ssid,
+      wifi_sta_config->sta.ssid,
+      sizeof(dmxbox_wifi_config.sta.ssid)
+  );
+  memcpy(
+      dmxbox_wifi_config.sta.password,
+      wifi_sta_config->sta.password,
+      sizeof(dmxbox_wifi_config.sta.password)
+  );
   dmxbox_wifi_config.sta.auth_mode = wifi_sta_config->sta.threshold.authmode;
 }
 
@@ -234,7 +284,8 @@ void dmxbox_wifi_start() {
   uint8_t sta_mode_enabled = dmxbox_get_sta_mode_enabled();
 
   ESP_ERROR_CHECK(
-      esp_wifi_set_mode(sta_mode_enabled ? WIFI_MODE_APSTA : WIFI_MODE_AP));
+      esp_wifi_set_mode(sta_mode_enabled ? WIFI_MODE_APSTA : WIFI_MODE_AP)
+  );
   ESP_ERROR_CHECK(esp_wifi_start());
 
   ESP_LOGI(TAG, "esp_wifi_start finished");
@@ -247,20 +298,29 @@ void dmxbox_wifi_start() {
 
   refresh_cached_wifi_config(&wifi_ap_config, &wifi_sta_config);
 
-  ESP_LOGI(TAG, "AP SSID: %s password: %s auth_mode: %d channel: %d",
-           wifi_ap_config.ap.ssid, wifi_ap_config.ap.password,
-           wifi_ap_config.ap.authmode, wifi_ap_config.ap.channel);
+  ESP_LOGI(
+      TAG,
+      "AP SSID: %s password: %s auth_mode: %d channel: %d",
+      wifi_ap_config.ap.ssid,
+      wifi_ap_config.ap.password,
+      wifi_ap_config.ap.authmode,
+      wifi_ap_config.ap.channel
+  );
 
   if (sta_mode_enabled) {
-    ESP_LOGI(TAG, "STA SSID: %s password: %s auth_mode: %d",
-             wifi_sta_config.sta.ssid, wifi_sta_config.sta.password,
-             wifi_sta_config.sta.threshold.authmode);
+    ESP_LOGI(
+        TAG,
+        "STA SSID: %s password: %s auth_mode: %d",
+        wifi_sta_config.sta.ssid,
+        wifi_sta_config.sta.password,
+        wifi_sta_config.sta.threshold.authmode
+    );
   } else {
     ESP_LOGI(TAG, "STA mode is disabled");
   }
 }
 
-void wifi_set_defaults(void) {
+void wifi_set_defaults() {
   ESP_LOGI(TAG, "Setting wifi configuration to default values");
 
   wifi_mode_t original_wifi_mode;
@@ -281,8 +341,14 @@ void wifi_set_defaults(void) {
           },
   };
 
-  sprintf((char *)wifi_ap_config.ap.ssid, "%s%02x%02x%02x", CONFIG_WIFI_AP_SSID,
-          mac[3], mac[4], mac[5]);
+  sprintf(
+      (char *)wifi_ap_config.ap.ssid,
+      "%s%02x%02x%02x",
+      CONFIG_WIFI_AP_SSID,
+      mac[3],
+      mac[4],
+      mac[5]
+  );
   wifi_ap_config.ap.ssid_len = strlen((const char *)wifi_ap_config.ap.ssid);
 
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config));
@@ -316,8 +382,11 @@ esp_err_t dmxbox_wifi_get_sta(dmxbox_wifi_sta_t *sta) {
   }
 
   wifi_config_t config;
-  ESP_RETURN_ON_ERROR(esp_wifi_get_config(WIFI_IF_STA, &config), TAG,
-                      "failed to get STA config");
+  ESP_RETURN_ON_ERROR(
+      esp_wifi_get_config(WIFI_IF_STA, &config),
+      TAG,
+      "failed to get STA config"
+  );
 
   sta->enabled = dmxbox_get_sta_mode_enabled();
   memcpy(sta->ssid, config.sta.ssid, sizeof(sta->ssid) - 1);
@@ -325,15 +394,18 @@ esp_err_t dmxbox_wifi_get_sta(dmxbox_wifi_sta_t *sta) {
   return ESP_OK;
 }
 
-esp_err_t dmxbox_wifi_disable_sta(void) {
+esp_err_t dmxbox_wifi_disable_sta() {
   dmxbox_set_sta_mode_enabled(false);
   ESP_LOGI(TAG, "setting WIFI_MODE_AP");
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
   return ESP_OK;
 }
 
-esp_err_t dmxbox_wifi_enable_sta(const char *ssid, wifi_auth_mode_t auth_mode,
-                                 const char *password) {
+esp_err_t dmxbox_wifi_enable_sta(
+    const char *ssid,
+    wifi_auth_mode_t auth_mode,
+    const char *password
+) {
   wifi_config_t config;
   config.sta.threshold.authmode = auth_mode;
 
@@ -346,10 +418,16 @@ esp_err_t dmxbox_wifi_enable_sta(const char *ssid, wifi_auth_mode_t auth_mode,
   strncpy((char *)config.sta.ssid, ssid, sizeof(config.sta.ssid));
 
   if (auth_mode != WIFI_AUTH_OPEN) {
-    if (strlcpy((char *)config.sta.password, password,
-                sizeof(config.sta.password)) >= sizeof(config.sta.password)) {
-      ESP_LOGE(TAG, "password %d characters or more",
-               sizeof(config.sta.password));
+    if (strlcpy(
+            (char *)config.sta.password,
+            password,
+            sizeof(config.sta.password)
+        ) >= sizeof(config.sta.password)) {
+      ESP_LOGE(
+          TAG,
+          "password %d characters or more",
+          sizeof(config.sta.password)
+      );
       return ESP_ERR_INVALID_ARG;
     }
   }
@@ -361,8 +439,10 @@ esp_err_t dmxbox_wifi_enable_sta(const char *ssid, wifi_auth_mode_t auth_mode,
   return ESP_OK;
 }
 
-void wifi_update_config(const dmxbox_wifi_config_t *new_config,
-                        bool sta_mode_enabled) {
+void wifi_update_config(
+    const dmxbox_wifi_config_t *new_config,
+    bool sta_mode_enabled
+) {
   ESP_LOGI(TAG, "Updating wifi config");
 
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
@@ -383,16 +463,22 @@ void wifi_update_config(const dmxbox_wifi_config_t *new_config,
 
   const char *ap_password =
       new_config->ap.auth_mode != WIFI_AUTH_OPEN ? new_config->ap.password : "";
-  strlcpy((char *)wifi_ap_config.ap.ssid, new_config->ap.ssid,
-          sizeof(wifi_ap_config.ap.ssid));
-  strlcpy((char *)wifi_ap_config.ap.password, ap_password,
-          sizeof(wifi_ap_config.ap.password));
+  strlcpy(
+      (char *)wifi_ap_config.ap.ssid,
+      new_config->ap.ssid,
+      sizeof(wifi_ap_config.ap.ssid)
+  );
+  strlcpy(
+      (char *)wifi_ap_config.ap.password,
+      ap_password,
+      sizeof(wifi_ap_config.ap.password)
+  );
 
   if (strlen(CONFIG_WIFI_AP_PASSWORD) == 0) {
     wifi_ap_config.ap.authmode = WIFI_AUTH_OPEN;
   }
-  ESP_ERROR_CHECK(
-      esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config)); // TODO handle errors
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config)
+  ); // TODO handle errors
 
   wifi_config_t wifi_sta_config = {
       .sta =
@@ -409,18 +495,25 @@ void wifi_update_config(const dmxbox_wifi_config_t *new_config,
   const char *sta_password = new_config->sta.auth_mode != WIFI_AUTH_OPEN
                                  ? new_config->sta.password
                                  : "";
-  strlcpy((char *)wifi_sta_config.sta.ssid, new_config->sta.ssid,
-          sizeof(wifi_sta_config.sta.ssid));
-  strlcpy((char *)wifi_sta_config.sta.password, sta_password,
-          sizeof(wifi_sta_config.sta.password));
+  strlcpy(
+      (char *)wifi_sta_config.sta.ssid,
+      new_config->sta.ssid,
+      sizeof(wifi_sta_config.sta.ssid)
+  );
+  strlcpy(
+      (char *)wifi_sta_config.sta.password,
+      sta_password,
+      sizeof(wifi_sta_config.sta.password)
+  );
 
-  ESP_ERROR_CHECK(
-      esp_wifi_set_config(WIFI_IF_STA, &wifi_sta_config)); // TODO handle errors
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_sta_config)
+  ); // TODO handle errors
 
   dmxbox_set_sta_mode_enabled(sta_mode_enabled);
 
   ESP_ERROR_CHECK(
-      esp_wifi_set_mode(sta_mode_enabled ? WIFI_MODE_APSTA : WIFI_MODE_AP));
+      esp_wifi_set_mode(sta_mode_enabled ? WIFI_MODE_APSTA : WIFI_MODE_AP)
+  );
 
   refresh_cached_wifi_config(&wifi_ap_config, &wifi_sta_config);
 
@@ -430,6 +523,6 @@ void wifi_update_config(const dmxbox_wifi_config_t *new_config,
   }
 }
 
-esp_netif_t *wifi_get_ap_interface(void) { return ap_interface; }
+esp_netif_t *wifi_get_ap_interface() { return ap_interface; }
 
-esp_netif_t *wifi_get_sta_interface(void) { return sta_interface; }
+esp_netif_t *wifi_get_sta_interface() { return sta_interface; }

@@ -114,7 +114,7 @@ static uint32_t get_step_out_end_offset(step_t *step) {
   return step->offset_ticks + get_step_out_end_ticks(step);
 }
 
-void dmxbox_effects_initialize() {
+void dmxbox_effects_init() {
   dmxbox_storage_effect_step_t *step1 =  calloc(
       1,
       sizeof(dmxbox_storage_effect_step_t) +

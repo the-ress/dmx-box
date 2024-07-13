@@ -11,7 +11,7 @@ static const char *TAG = "factory_reset";
 
 static bool pwr_led = true;
 
-void setup_reset_button(void) {
+void setup_reset_button() {
   ESP_ERROR_CHECK(gpio_reset_pin(dmxbox_button_reset)); // enables pullup
   ESP_ERROR_CHECK(gpio_set_direction(dmxbox_button_reset, GPIO_MODE_INPUT));
 }
@@ -35,13 +35,13 @@ bool blink_and_wait(int blink_interval, int wait_time) {
   return true;
 }
 
-void perform_factory_reset(void) {
+void perform_factory_reset() {
   dmxbox_storage_factory_reset();
   ESP_LOGI(TAG, "performing factory reset");
   esp_restart();
 }
 
-void dmxbox_handle_factory_reset(void) {
+void dmxbox_handle_factory_reset() {
   setup_reset_button();
   if (!is_reset_button_pressed()) {
     return;

@@ -10,7 +10,7 @@ static void dmxbox_led_start_one(dmxbox_led_t led) {
   ESP_ERROR_CHECK(gpio_set_direction(led, GPIO_MODE_OUTPUT));
 }
 
-void dmxbox_led_start(void) {
+void dmxbox_led_start() {
   ESP_LOGI(TAG, "Configuring LED GPIOs");
   dmxbox_led_start_one(dmxbox_led_dmx_out);
   dmxbox_led_start_one(dmxbox_led_power);

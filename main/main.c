@@ -22,7 +22,7 @@
 
 static const char *TAG = "main";
 
-esp_err_t init_fs(void) {
+esp_err_t init_fs() {
   esp_vfs_spiffs_conf_t conf = {
       .base_path = "/www",
       .partition_label = NULL,
@@ -56,7 +56,7 @@ esp_err_t init_fs(void) {
   return ESP_OK;
 }
 
-void app_main(void) {
+void app_main() {
   ESP_LOGI(TAG, "App starting...");
 
   dmxbox_led_start();
@@ -73,9 +73,9 @@ void app_main(void) {
     dmxbox_set_first_run_completed(1);
   }
 
-  dmxbox_artnet_initialize();
+  dmxbox_artnet_init();
 
-  dmxbox_effects_initialize();
+  dmxbox_effects_init();
 
   ESP_ERROR_CHECK(init_fs());
   ESP_ERROR_CHECK(dmxbox_webserver_start());

@@ -11,5 +11,5 @@ typedef enum dmxbox_led {
   dmxbox_led_sta = 27,
 } dmxbox_led_t;
 
-void dmxbox_led_start(void);
+void dmxbox_led_start();
 esp_err_t dmxbox_led_set(dmxbox_led_t, bool level);

@@ -17,7 +17,7 @@ static const char *TAG = "dmx_send";
 portMUX_TYPE dmxbox_dmx_out_spinlock = portMUX_INITIALIZER_UNLOCKED;
 uint8_t dmxbox_dmx_out_data[DMX_PACKET_SIZE_MAX] = {0};
 
-static esp_err_t configure_dmx_out(void) {
+static esp_err_t configure_dmx_out() {
   ESP_LOGI(TAG, "Configuring DMX OUT");
 
   const dmx_config_t config = DMX_CONFIG_DEFAULT;

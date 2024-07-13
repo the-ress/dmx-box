@@ -8,7 +8,7 @@
 #define CONFIG_DMXBOX_WEBSEVER_MAX_SOCKETS 10
 #endif
 
-esp_err_t dmxbox_httpd_start(void);
+esp_err_t dmxbox_httpd_start();
 
 esp_err_t dmxbox_httpd_cors_allow_origin(httpd_req_t *req);
 esp_err_t dmxbox_httpd_cors_allow_methods(httpd_req_t *req, const char *methods);

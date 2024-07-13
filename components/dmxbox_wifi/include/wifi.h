@@ -36,15 +36,20 @@ typedef struct dmxbox_wifi_sta {
 extern dmxbox_wifi_config_t dmxbox_wifi_config;
 extern EventGroupHandle_t dmxbox_wifi_event_group;
 
-void dmxbox_wifi_start(void);
+void dmxbox_wifi_start();
 
 esp_err_t dmxbox_wifi_get_sta(dmxbox_wifi_sta_t *sta);
-esp_err_t dmxbox_wifi_disable_sta(void);
-esp_err_t dmxbox_wifi_enable_sta(const char *ssid, wifi_auth_mode_t auth_mode,
-                                 const char *password);
-void wifi_set_defaults(void);
-void wifi_update_config(const dmxbox_wifi_config_t *new_config,
-                        bool sta_mode_enabled);
+esp_err_t dmxbox_wifi_disable_sta();
+esp_err_t dmxbox_wifi_enable_sta(
+    const char *ssid,
+    wifi_auth_mode_t auth_mode,
+    const char *password
+);
+void wifi_set_defaults();
+void wifi_update_config(
+    const dmxbox_wifi_config_t *new_config,
+    bool sta_mode_enabled
+);
 
-esp_netif_t *wifi_get_ap_interface(void);
-esp_netif_t *wifi_get_sta_interface(void);
+esp_netif_t *wifi_get_ap_interface();
+esp_netif_t *wifi_get_sta_interface();

@@ -9,7 +9,7 @@ static const char TAG[] = "dmxbox_wifi_scan";
 
 static dmxbox_wifi_scan_callback_t g_callback = NULL;
 
-void dmxbox_wifi_scan_on_done(void) {
+void dmxbox_wifi_scan_on_done() {
   esp_err_t ret = ESP_OK;
   uint16_t record_count = 0;
   dmxbox_wifi_scan_result_t *result = NULL;
@@ -60,7 +60,7 @@ dmxbox_wifi_scan_register_callback(dmxbox_wifi_scan_callback_t callback) {
   return ESP_OK;
 }
 
-esp_err_t dmxbox_wifi_scan_start(void) {
+esp_err_t dmxbox_wifi_scan_start() {
   ESP_RETURN_ON_ERROR(esp_wifi_scan_stop(), TAG, "failed to stop scan");
   ESP_RETURN_ON_ERROR(
       esp_wifi_scan_start(NULL, false),

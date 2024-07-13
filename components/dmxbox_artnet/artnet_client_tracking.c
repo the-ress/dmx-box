@@ -114,7 +114,7 @@ add_universe_record(dmxbox_artnet_client_tracking_entry_t *entry) {
   return universe_record;
 }
 
-void dmxbox_artnet_client_tracking_initialize() {
+void dmxbox_artnet_client_tracking_init() {
   client_map = hashmap_new(
       sizeof(dmxbox_artnet_client_tracking_entry_t),
       0,

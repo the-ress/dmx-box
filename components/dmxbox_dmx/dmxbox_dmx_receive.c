@@ -16,7 +16,7 @@ bool dmxbox_dmx_in_connected = false;
 
 // static uint32_t timer = 0;
 
-static esp_err_t configure_dmx_in(void) {
+static esp_err_t configure_dmx_in() {
   ESP_LOGI(TAG, "Configuring DMX IN");
 
   const dmx_config_t config = DMX_CONFIG_DEFAULT;
@@ -63,7 +63,7 @@ static void handle_packet(const dmx_packet_t *packet_info) {
   // }
 }
 
-static void handle_timeout(void) {
+static void handle_timeout() {
   if (dmxbox_dmx_in_connected) {
     dmxbox_dmx_in_connected = false;
     ESP_LOGI(TAG, "DMX connection lost");
