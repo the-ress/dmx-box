@@ -11,6 +11,7 @@ esp_err_t dmxbox_webserver_start() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.task_priority = 1;
   config.max_open_sockets = CONFIG_DMXBOX_WEBSEVER_MAX_SOCKETS;
+  config.max_uri_handlers = 32;
   config.lru_purge_enable = true;
   config.uri_match_fn = httpd_uri_match_wildcard;
 
