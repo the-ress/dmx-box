@@ -8,76 +8,142 @@
 
 static const char TAG[] = "dmxbox_api_effect_step";
 
-static cJSON *dmxbox_api_channel_to_json(dmxbox_storage_channel_t c) {
+static cJSON *dmxbox_api_channel_to_json(const dmxbox_storage_channel_t *c) {
   char buffer[sizeof("127-16-16/512")];
-  size_t size = c.universe.address
+  size_t size = c->universe.address
                     ? snprintf(
                           buffer,
                           sizeof(buffer),
                           "%u-%u-%u/%u",
-                          c.universe.net,
-                          c.universe.subnet,
-                          c.universe.universe,
-                          c.index
+                          c->universe.net,
+                          c->universe.subnet,
+                          c->universe.universe,
+                          c->index
                       )
-                    : snprintf(buffer, sizeof(buffer), "%u", c.index);
+                    : snprintf(buffer, sizeof(buffer), "%u", c->index);
   return size < sizeof(buffer) ? cJSON_CreateString(buffer) : NULL;
 }
 
+struct dmxbox_serializer_entry;
+
+typedef cJSON *(*dmxbox_ptr_to_json_func_t)(const void *object);
+
+typedef cJSON *(*dmxbox_serialize_func_t)(
+    const struct dmxbox_serializer_entry *,
+    const void *object
+);
+
 typedef struct dmxbox_serializer_entry {
-  int cjson_type;
-  const char *name;
   size_t offset;
+  dmxbox_serialize_func_t serialize;
+  const void *serialize_ctx;
+  const char *json_name;
 } dmxbox_serializer_entry_t;
 
-#define BEGIN_DMXBOX_API_SERIALIZER(name, type)                                \
-  static cJSON *dmxbox_api_##name##_to_json(const type *object) {              \
-    cJSON *json = cJSON_CreateObject();                                        \
-    if (!json) {                                                               \
-      return NULL;                                                             \
-    }
+static void *at_offset(const void *ptr, size_t offset) {
+  return (uint8_t *)ptr + offset;
+}
 
-#define DMXBOX_API_SERIALIZE_NUMBER(name)                                      \
-  if (!cJSON_AddNumberToObject(json, #name, object->name)) {                   \
-    goto error;                                                                \
+cJSON *dmxbox_serialize_u8(
+    const dmxbox_serializer_entry_t *entry,
+    const void *object
+) {
+  ESP_LOGI(TAG, "serializing u8 at offset %u", entry->offset);
+  const uint8_t *ptr = (uint8_t *)at_offset(object, entry->offset);
+  return cJSON_CreateNumber(*ptr);
+}
+
+cJSON *dmxbox_serialize_u16(
+    const dmxbox_serializer_entry_t *entry,
+    const void *object
+) {
+  ESP_LOGI(TAG, "serializing u16 at offset %u", entry->offset);
+  const uint16_t *ptr = (uint16_t *)at_offset(object, entry->offset);
+  return cJSON_CreateNumber(*ptr);
+}
+
+cJSON *dmxbox_serialize_ptr(
+    const dmxbox_serializer_entry_t *entry,
+    const void *object
+) {
+  ESP_LOGI(TAG, "serializing ptr at offset %u", entry->offset);
+  const void *ptr = at_offset(object, entry->offset);
+  dmxbox_ptr_to_json_func_t func = entry->serialize_ctx;
+  return func(ptr);
+}
+
+cJSON *dmxbox_serialize_object(
+    const dmxbox_serializer_entry_t *entry,
+    const void *object
+) {
+  cJSON *json = cJSON_CreateObject();
+  if (!json) {
+    return NULL;
+  }
+  while (entry->json_name) {
+    ESP_LOGI(TAG, "serializing %s", entry->json_name);
+    cJSON *item = entry->serialize(entry, object);
+    if (!item) {
+      goto error;
+    }
+    if (!cJSON_AddItemToObjectCS(json, entry->json_name, item)) {
+      cJSON_free(item);
+      goto error;
+    }
+    entry++;
   }
 
-#define DMXBOX_API_SERIALIZE_ITEM(name, serializer)                            \
-  do {                                                                         \
-    cJSON *item = serializer(object->name);                                    \
-    if (!item) {                                                               \
-      goto error;                                                              \
-    }                                                                          \
-    if (!cJSON_AddItemToObjectCS(json, #name, item)) {                         \
-      cJSON_free(item);                                                        \
-      goto error;                                                              \
-    }                                                                          \
-  } while (false)
+  return json;
+error:
+  cJSON_free(json);
+  return NULL;
+}
+
+#define BEGIN_DMXBOX_API_SERIALIZER(name)                                      \
+  static const dmxbox_serializer_entry_t name[] = {
+
+#define DMXBOX_API_SERIALIZE_U8(type, name)                                    \
+  {.serialize = dmxbox_serialize_u8,                                           \
+   .json_name = #name,                                                         \
+   .offset = offsetof(type, name)},
+
+#define DMXBOX_API_SERIALIZE_U16(type, name)                                   \
+  {.serialize = dmxbox_serialize_u16,                                          \
+   .json_name = #name,                                                         \
+   .offset = offsetof(type, name)},
+
+#define DMXBOX_API_SERIALIZE_PTR(type, name, to_json_fn)                       \
+  {.serialize = dmxbox_serialize_ptr,                                          \
+   .serialize_ctx = to_json_fn,                                                \
+   .json_name = #name,                                                         \
+   .offset = offsetof(type, name)},
 
 #define END_DMXBOX_API_SERIALIZER()                                            \
-  return json;                                                                 \
-  error:                                                                       \
-  cJSON_free(json);                                                            \
-  return NULL;                                                                 \
-  }
+  { .json_name = NULL }                                                        \
+  }                                                                            \
+  ;
 
-BEGIN_DMXBOX_API_SERIALIZER(channel_level, dmxbox_storage_channel_level_t)
-DMXBOX_API_SERIALIZE_ITEM(channel, dmxbox_api_channel_to_json);
-DMXBOX_API_SERIALIZE_NUMBER(level);
+BEGIN_DMXBOX_API_SERIALIZER(channel_level_serializer)
+DMXBOX_API_SERIALIZE_PTR(
+    dmxbox_storage_channel_level_t,
+    channel,
+    dmxbox_api_channel_to_json
+)
+DMXBOX_API_SERIALIZE_U8(dmxbox_storage_channel_level_t, level)
 END_DMXBOX_API_SERIALIZER()
 
-BEGIN_DMXBOX_API_SERIALIZER(effect_step_header, dmxbox_storage_effect_step_t)
-DMXBOX_API_SERIALIZE_NUMBER(time);
-DMXBOX_API_SERIALIZE_NUMBER(in);
-DMXBOX_API_SERIALIZE_NUMBER(dwell);
-DMXBOX_API_SERIALIZE_NUMBER(out);
+BEGIN_DMXBOX_API_SERIALIZER(effect_step_header_serializer)
+DMXBOX_API_SERIALIZE_U16(dmxbox_storage_effect_step_t, time)
+DMXBOX_API_SERIALIZE_U16(dmxbox_storage_effect_step_t, in)
+DMXBOX_API_SERIALIZE_U16(dmxbox_storage_effect_step_t, dwell)
+DMXBOX_API_SERIALIZE_U16(dmxbox_storage_effect_step_t, out)
 END_DMXBOX_API_SERIALIZER()
 
 static cJSON *dmxbox_api_effect_step_to_json(
     const dmxbox_storage_effect_step_t *object,
     size_t channel_count
 ) {
-  cJSON *json = dmxbox_api_effect_step_header_to_json(object);
+  cJSON *json = dmxbox_serialize_object(effect_step_header_serializer, object);
 
   cJSON *channels = cJSON_AddArrayToObject(json, "channels");
   if (!channels) {
@@ -86,7 +152,7 @@ static cJSON *dmxbox_api_effect_step_to_json(
 
   for (size_t i = 0; i < channel_count; i++) {
     cJSON *channel_level =
-        dmxbox_api_channel_level_to_json(&object->channels[i]);
+        dmxbox_serialize_object(channel_level_serializer, &object->channels[i]);
     if (!cJSON_AddItemToArray(channels, channel_level)) {
       cJSON_free(channel_level);
       goto exit;
