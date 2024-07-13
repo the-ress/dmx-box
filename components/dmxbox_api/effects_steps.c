@@ -55,10 +55,10 @@ DMXBOX_API_SERIALIZE_U8(dmxbox_storage_channel_level_t, level)
 END_DMXBOX_API_SERIALIZER(dmxbox_storage_channel_level_t, channel_level)
 
 BEGIN_DMXBOX_API_SERIALIZER(dmxbox_storage_effect_step_t, effect_step)
-DMXBOX_API_SERIALIZE_U16(dmxbox_storage_effect_step_t, time)
-DMXBOX_API_SERIALIZE_U16(dmxbox_storage_effect_step_t, in)
-DMXBOX_API_SERIALIZE_U16(dmxbox_storage_effect_step_t, dwell)
-DMXBOX_API_SERIALIZE_U16(dmxbox_storage_effect_step_t, out)
+DMXBOX_API_SERIALIZE_U32(dmxbox_storage_effect_step_t, time)
+DMXBOX_API_SERIALIZE_U32(dmxbox_storage_effect_step_t, in)
+DMXBOX_API_SERIALIZE_U32(dmxbox_storage_effect_step_t, dwell)
+DMXBOX_API_SERIALIZE_U32(dmxbox_storage_effect_step_t, out)
 DMXBOX_API_SERIALIZE_TRAILING_ARRAY(
     dmxbox_storage_effect_step_t,
     channels,
@@ -133,7 +133,8 @@ esp_err_t dmxbox_api_effect_step_put(
       "failed to receive json"
   );
 
-  dmxbox_storage_effect_step_t *parsed = dmxbox_effect_step_from_json(json);
+  dmxbox_storage_effect_step_t *parsed =
+      dmxbox_effect_step_from_json_alloc(json);
   cJSON_free(json);
 
   if (!parsed) {

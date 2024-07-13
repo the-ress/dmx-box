@@ -294,7 +294,7 @@ bool dmxbox_deserialize_trailing_array(
     const cJSON *json,
     void *object
 ) {
-  // dmxbox_deserialize knows about trailing arrays and will already have
+  // dmxbox_deserialize_object knows about trailing arrays and will already have
   // allocated the correct size and filled in the count field
   const cJSON *json_array = get_item(entry, json);
   if (!json_array) {
@@ -302,18 +302,20 @@ bool dmxbox_deserialize_trailing_array(
   }
 
   dmxbox_from_json_func_t from_json = entry->context[2];
-  size_t json_array_size = cJSON_GetArraySize(json_array);
+  size_t json_array_count = cJSON_GetArraySize(json_array);
 
   void *array = at_offset(object, entry->offset);
   size_t array_item_size = get_trailing_array_item_size(entry);
 
-  for (size_t i = 0; i < json_array_size; i++) {
-    cJSON *item = cJSON_GetArrayItem(array, i);
-    if (!item) {
+  for (size_t i = 0; i < json_array_count; i++) {
+    cJSON *json_item = cJSON_GetArrayItem(json_array, i);
+    if (!json_item) {
       ESP_LOGE(TAG, "couldn't get array index %zu", i);
       return false;
     }
-    if (!from_json(item, array)) {
+    ESP_LOGI(TAG, "deserializing index %zu", i);
+    if (!from_json(json_item, array)) {
+      ESP_LOGE(TAG, "deserializing index %zu failed", i);
       return false;
     }
     array = at_offset(array, array_item_size);
@@ -348,7 +350,35 @@ error:
   return NULL;
 }
 
-void *dmxbox_deserialize_object(
+static bool dmxbox_deserialize_object_impl(
+    const dmxbox_serializer_entry_t *entry,
+    const cJSON *json,
+    void *object
+) {
+  while (entry && entry->json_name) {
+    ESP_LOGI(TAG, "deserializing %s", entry->json_name);
+    if (!entry->deserialize(entry, json, object)) {
+      return false;
+    }
+    entry++;
+  }
+  return true;
+}
+
+bool dmxbox_deserialize_object(
+    const dmxbox_serializer_entry_t *entry,
+    const cJSON *json,
+    void *object
+) {
+  const dmxbox_serializer_entry_t *trailing_array = find_trailing_array(entry);
+  if (trailing_array) {
+    ESP_LOGE(TAG, "trailing arrays only supported in _alloc deserializers");
+    return false;
+  }
+  return dmxbox_deserialize_object_impl(entry, json, object);
+}
+
+void *dmxbox_deserialize_object_alloc(
     const dmxbox_serializer_entry_t *entry,
     const cJSON *json
 ) {
@@ -385,15 +415,10 @@ void *dmxbox_deserialize_object(
     *count_ptr = trailing_count;
   }
 
-  while (entry && entry->json_name) {
-    if (!entry->deserialize(entry, json, object)) {
-      goto error;
-    }
-    entry++;
+  if (dmxbox_deserialize_object_impl(entry, json, object)) {
+    return object;
   }
-  return object;
 
-error:
   free(object);
   return NULL;
 }

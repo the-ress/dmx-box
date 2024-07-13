@@ -29,9 +29,16 @@ cJSON *dmxbox_serialize_object(
     const dmxbox_serializer_entry_t *entry,
     const void *object
 );
-void *dmxbox_deserialize_object(
+
+void *dmxbox_deserialize_object_alloc(
     const dmxbox_serializer_entry_t *entry,
     const cJSON *json
+);
+
+bool dmxbox_deserialize_object(
+    const dmxbox_serializer_entry_t *entry,
+    const cJSON *json,
+    void *object
 );
 
 //
@@ -111,6 +118,14 @@ bool dmxbox_deserialize_trailing_array(
    .parent_size = sizeof(type),                                                \
    .offset = offsetof(type, name)},
 
+#define DMXBOX_API_SERIALIZE_U32(type, name)                                   \
+  {.serialize = dmxbox_serialize_u32,                                          \
+   .deserialize = dmxbox_deserialize_u32,                                      \
+   .json_name = #name,                                                         \
+   .parent_size = sizeof(type),                                                \
+   .offset = offsetof(type, name)},
+
+// do not use _alloc deserializers!
 #define DMXBOX_API_SERIALIZE_ITEM(type, name, to_json_fn, from_json_fn)        \
   {.serialize = dmxbox_serialize_item,                                         \
    .deserialize = dmxbox_deserialize_item,                                     \
@@ -148,6 +163,9 @@ bool dmxbox_deserialize_trailing_array(
   cJSON *dmxbox_##name##_to_json(const type *object) {                         \
     return dmxbox_serialize_object(name##_serializer, object);                 \
   }                                                                            \
-  type *dmxbox_##name##_from_json(const cJSON *json) {                         \
-    return dmxbox_deserialize_object(name##_serializer, json);                 \
+  type *dmxbox_##name##_from_json_alloc(const cJSON *json) {                   \
+    return dmxbox_deserialize_object_alloc(name##_serializer, json);           \
+  }                                                                            \
+  bool dmxbox_##name##_from_json(const cJSON *json, type *object) {            \
+    return dmxbox_deserialize_object(name##_serializer, json, object);                 \
   }
