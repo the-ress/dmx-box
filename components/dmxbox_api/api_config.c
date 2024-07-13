@@ -72,12 +72,10 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   char *ap_auth_mode_string = cJSON_GetObjectItem(ap, "auth_mode")->valuestring;
 
   wifi_auth_mode_t ap_auth_mode;
-  ESP_RETURN_ON_ERROR(
-      dmxbox_auth_mode_from_str(ap_auth_mode_string, &ap_auth_mode),
-      TAG,
-      "Could not parse ap auth mode: %s",
-      ap_auth_mode_string
-  );
+  if (!dmxbox_auth_mode_from_str(ap_auth_mode_string, &ap_auth_mode)) {
+    ESP_LOGE(TAG, "Could not parse ap auth mode: %s", ap_auth_mode_string);
+    return ESP_FAIL;
+  }
   uint8_t ap_channel = (uint8_t)cJSON_GetObjectItem(ap, "channel")->valueint;
 
   bool sta_mode_enabled = cJSON_IsTrue(cJSON_GetObjectItem(sta, "enabled"));
@@ -87,12 +85,10 @@ static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
       cJSON_GetObjectItem(sta, "auth_mode")->valuestring;
 
   wifi_auth_mode_t sta_auth_mode;
-  ESP_RETURN_ON_ERROR(
-      dmxbox_auth_mode_from_str(sta_auth_mode_string, &sta_auth_mode),
-      TAG,
-      "Could not parse sta auth mode: %s",
-      sta_auth_mode_string
-  );
+  if (!dmxbox_auth_mode_from_str(sta_auth_mode_string, &sta_auth_mode)) {
+    ESP_LOGE(TAG, "Could not parse sta auth mode: %s", sta_auth_mode_string);
+    return ESP_FAIL;
+  }
 
   ESP_LOGI(TAG, "Got ap hostname: '%s'", hostname);
   ESP_LOGI(
