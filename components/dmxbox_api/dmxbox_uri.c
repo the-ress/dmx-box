@@ -5,12 +5,22 @@
 
 static const char TAG[] = "dmxbox_uri";
 
-static bool dmxbox_uri_is_segment_end(const char *str) {
-  return *str == '/' || *str == '\0';
+static const char *dmxbox_uri_consume_segment_end(const char *uri) {
+  if (!uri) {
+    return NULL;
+  }
+  if (*uri == '/') {
+    uri++;
+    return uri;
+  }
+  if (*uri == '\0') {
+    return uri;
+  }
+  return NULL;
 }
 
 const char *dmxbox_uri_match_u16(uint16_t *result, const char *uri) {
-  if (!uri) {
+  if (!uri || !result) {
     return NULL;
   }
   int value = 0;
@@ -27,12 +37,11 @@ const char *dmxbox_uri_match_u16(uint16_t *result, const char *uri) {
     value *= 10;
     value += (*uri - '0');
   }
-  if (dmxbox_uri_is_segment_end(uri)) {
-    *result = value;
-    return uri;
-  }
-  *result = 0;
-  return NULL;
+  ESP_LOGI(TAG, "after loop: '%s'", uri ? uri : "NULL" );
+  uri = dmxbox_uri_consume_segment_end(uri);
+  ESP_LOGI(TAG, "consumed: '%s'", uri ? uri : "NULL");
+  *result = uri ? value : 0;
+  return uri;
 }
 
 const char *dmxbox_uri_match_component(const char *expected, const char *uri) {
@@ -47,9 +56,8 @@ const char *dmxbox_uri_match_component(const char *expected, const char *uri) {
       return NULL;
     }
   }
-  if (dmxbox_uri_is_segment_end(uri)) {
-    return *expected == '\0' ? uri : NULL;
+  if (*expected != '\0') {
+     return NULL;
   }
-  return NULL;
+  return dmxbox_uri_consume_segment_end(uri);
 }
-

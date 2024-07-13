@@ -9,11 +9,18 @@
 static const char TAG[] = "dmxbox_api_effect_step";
 
 static cJSON *dmxbox_api_channel_to_json(dmxbox_storage_channel_t c) {
-  char buffer[sizeof("32768-512")];
-  size_t size =
-      c.universe
-          ? snprintf(buffer, sizeof(buffer), "%u-%u", c.universe, c.index)
-          : snprintf(buffer, sizeof(buffer), "%u", c.index);
+  char buffer[sizeof("127-16-16/512")];
+  size_t size = c.universe.address
+                    ? snprintf(
+                          buffer,
+                          sizeof(buffer),
+                          "%u-%u-%u/%u",
+                          c.universe.net,
+                          c.universe.subnet,
+                          c.universe.universe,
+                          c.index
+                      )
+                    : snprintf(buffer, sizeof(buffer), "%u", c.index);
   return size < sizeof(buffer) ? cJSON_CreateString(buffer) : NULL;
 }
 
