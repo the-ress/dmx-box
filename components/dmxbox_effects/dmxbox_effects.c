@@ -11,6 +11,7 @@
 #include "dmxbox_artnet.h"
 #include "dmxbox_const.h"
 #include "dmxbox_effects.h"
+#include "dmxbox_storage.h"
 
 static const char *TAG = "effects";
 
@@ -114,75 +115,133 @@ static uint32_t get_step_out_end_offset(step_t *step) {
 }
 
 void dmxbox_effects_initialize() {
-  effect_t *effect1 = effect_alloc();
-  step_t *step1 = step_alloc();
-  step_t *step2 = step_alloc();
-  step_t *step3 = step_alloc();
-  step_channel_t *step1_channel1 = step_channel_alloc();
-  step_channel_t *step1_channel2 = step_channel_alloc();
-  step_channel_t *step2_channel1 = step_channel_alloc();
-  step_channel_t *step2_channel2 = step_channel_alloc();
-  step_channel_t *step3_channel1 = step_channel_alloc();
-  step_channel_t *step3_channel2 = step_channel_alloc();
-  step_channel_t *step3_channel3 = step_channel_alloc();
-  step_channel_t *step3_channel4 = step_channel_alloc();
-  step_channel_t *step3_channel5 = step_channel_alloc();
-
-  effects_head = effect1;
-
-  effect1->steps_head = step1;
-  step1->channels_head = step1_channel1;
-  step2->channels_head = step2_channel1;
-  step3->channels_head = step3_channel1;
-
-  step1->next = step2;
-  step2->next = step3;
-  step1_channel1->next = step1_channel2;
-  step2_channel1->next = step2_channel2;
-  step3_channel1->next = step3_channel2;
-  step3_channel2->next = step3_channel3;
-  step3_channel3->next = step3_channel4;
-  step3_channel4->next = step3_channel5;
-
-  effect1->level_channel = 1;
-  effect1->rate_channel = 2;
+  dmxbox_storage_effect_step_t *step1 = calloc(
+      1,
+      sizeof(dmxbox_storage_effect_step_t) +
+          (2 - 1) * sizeof(dmxbox_storage_channel_level_t)
+  );
+  dmxbox_storage_effect_step_t *step2 = calloc(
+      1,
+      sizeof(dmxbox_storage_effect_step_t) +
+          (2 - 1) * sizeof(dmxbox_storage_channel_level_t)
+  );
+  dmxbox_storage_effect_step_t *step3 = calloc(
+      1,
+      sizeof(dmxbox_storage_effect_step_t) +
+          (5 - 1) * sizeof(dmxbox_storage_channel_level_t)
+  );
 
   step1->time = 1000;
   step1->in = 250;
   step1->dwell = 250;
   step1->out = 250;
 
-  step1_channel1->channel = 1;
-  step1_channel1->level = 255;
+  step1->channels[0].channel = 1;
+  step1->channels[0].level = 255;
 
-  step1_channel2->channel = 2;
-  step1_channel2->level = 255;
+  step1->channels[1].channel = 2;
+  step1->channels[1].level = 255;
 
   step2->time = 1000;
   step2->in = 250;
   step2->dwell = 250;
   step2->out = 250;
 
-  step2_channel1->channel = 8;
-  step2_channel1->level = 255;
-  step2_channel2->channel = 10;
-  step2_channel2->level = 255;
+  step2->channels[0].channel = 8;
+  step2->channels[0].level = 255;
+  step2->channels[1].channel = 10;
+  step2->channels[1].level = 255;
 
   step3->time = 1000;
   step3->in = 250;
   step3->dwell = 250;
   step3->out = 250;
 
-  step3_channel1->channel = 15;
-  step3_channel1->level = 255;
-  step3_channel2->channel = 16;
-  step3_channel2->level = 255;
-  step3_channel3->channel = 17;
-  step3_channel3->level = 255;
-  step3_channel4->channel = 18;
-  step3_channel4->level = 255;
-  step3_channel5->channel = 19;
-  step3_channel5->level = 255;
+  step3->channels[0].channel = 15;
+  step3->channels[0].level = 255;
+  step3->channels[1].channel = 16;
+  step3->channels[1].level = 255;
+  step3->channels[2].channel = 17;
+  step3->channels[2].level = 255;
+  step3->channels[3].channel = 18;
+  step3->channels[3].level = 255;
+  step3->channels[4].channel = 19;
+  step3->channels[4].level = 255;
+
+  uint16_t effect_id = 1;
+
+  dmxbox_storage_put_effect_step(effect_id, 1, 2, step1);
+  dmxbox_storage_put_effect_step(effect_id, 2, 2, step2);
+  dmxbox_storage_put_effect_step(effect_id, 3, 5, step3);
+
+  free(step1);
+  free(step2);
+  free(step3);
+
+  effect_t *effect1 = effect_alloc();
+  effect1->level_channel = 1;
+  effect1->rate_channel = 2;
+
+  size_t step_count = 3;
+
+  step_t *steps_tail = NULL;
+  for (uint16_t step_id = 1; step_id <= step_count; step_id++) {
+    ESP_LOGI(TAG, "step %d", step_id);
+
+    size_t channel_count;
+    dmxbox_storage_effect_step_t *step_data;
+    ESP_ERROR_CHECK(dmxbox_storage_get_effect_step(
+        effect_id,
+        step_id,
+        &channel_count,
+        &step_data
+    ));
+
+    step_t *step = step_alloc();
+    step->time = step_data->time;
+    step->in = step_data->in;
+    step->dwell = step_data->dwell;
+    step->out = step_data->out;
+
+    ESP_LOGI(TAG, "step %d time = %d", step_id, (int)step->time);
+    ESP_LOGI(TAG, "step %d in = %d", step_id, (int)step->in);
+    ESP_LOGI(TAG, "step %d dwell = %d", step_id, (int)step->dwell);
+    ESP_LOGI(TAG, "step %d out = %d", step_id, (int)step->out);
+
+    step_channel_t *channels_tail = NULL;
+    for (size_t i = 0; i < channel_count; i++) {
+      step_channel_t *channel = step_channel_alloc();
+      channel->channel = step_data->channels[i].channel;
+      channel->level = step_data->channels[i].level;
+
+      ESP_LOGI(
+          TAG,
+          "step %d channel %d: %d @ %d",
+          step_id,
+          i,
+          channel->channel,
+          channel->level
+      );
+
+      if (channels_tail) {
+        channels_tail->next = channel;
+        channels_tail = channel;
+      } else {
+        step->channels_head = channels_tail = channel;
+      }
+    }
+
+    if (steps_tail) {
+      steps_tail->next = step;
+      steps_tail = step;
+    } else {
+      effect1->steps_head = steps_tail = step;
+    }
+
+    free(step_data);
+  }
+
+  effects_head = effect1;
 
   for (effect_t *effect = effects_head; effect; effect = effect->next) {
     effect->active = false;

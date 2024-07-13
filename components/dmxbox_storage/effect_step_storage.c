@@ -26,14 +26,14 @@ static esp_err_t dmxbox_storage_effect_step_key(
 esp_err_t dmxbox_storage_get_effect_step(
     uint16_t effect_id,
     uint16_t step_id,
-    size_t *size,
+    size_t *channel_count,
     dmxbox_storage_effect_step_t **result
 ) {
-  if (!size || !result) {
+  if (!channel_count || !result) {
     return ESP_ERR_INVALID_ARG;
   }
 
-  *size = 0;
+  *channel_count = 0;
   *result = NULL;
 
   char key[NVS_KEY_NAME_MAX_SIZE];
@@ -55,8 +55,10 @@ esp_err_t dmxbox_storage_get_effect_step(
   esp_err_t ret = ESP_OK;
   void *buffer = NULL;
 
+  size_t size;
+
   ESP_GOTO_ON_ERROR(
-      dmxbox_storage_get_blob_malloc(storage, key, size, buffer),
+      dmxbox_storage_get_blob_malloc(storage, key, &size, &buffer),
       close_storage,
       TAG,
       "failed to get the blob for key '%s'",
@@ -64,6 +66,9 @@ esp_err_t dmxbox_storage_get_effect_step(
   );
 
   *result = buffer;
+  *channel_count = (size - sizeof(dmxbox_storage_effect_step_t)) /
+                       sizeof(dmxbox_storage_channel_level_t) +
+                   1;
 
 close_storage:
   nvs_close(storage);
@@ -73,10 +78,13 @@ close_storage:
 esp_err_t dmxbox_storage_put_effect_step(
     uint16_t effect_id,
     uint16_t step_id,
-    size_t size,
+    size_t channel_count,
     const dmxbox_storage_effect_step_t *value
 ) {
   esp_err_t ret = ESP_OK;
+
+  size_t size = sizeof(dmxbox_storage_effect_step_t) +
+                sizeof(dmxbox_storage_channel_level_t) * (channel_count - 1);
 
   nvs_handle_t storage;
   ESP_RETURN_ON_ERROR(

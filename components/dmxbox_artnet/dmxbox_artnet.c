@@ -156,6 +156,7 @@ static void initialize_universe_advertisements() {
 
       if (tail) {
         tail->next = packet;
+        tail = packet;
       } else {
         head = tail = packet;
       }

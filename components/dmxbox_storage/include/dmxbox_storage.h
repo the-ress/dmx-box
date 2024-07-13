@@ -33,13 +33,13 @@ typedef struct dmxbox_storage_effect_step {
 esp_err_t dmxbox_storage_get_effect_step(
     uint16_t effect_id,
     uint16_t step_id,
-    size_t *size,
+    size_t *channel_count,
     dmxbox_storage_effect_step_t **result
 );
 
 esp_err_t dmxbox_storage_put_effect_step(
     uint16_t effect_id,
     uint16_t step_id,
-    size_t size,
+    size_t channel_count,
     const dmxbox_storage_effect_step_t *result
 );
