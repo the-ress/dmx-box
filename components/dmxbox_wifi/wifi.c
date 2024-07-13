@@ -200,17 +200,6 @@ static void dmxbox_wifi_on_ip_event(
 }
 
 static void dmxbox_wifi_init() {
-  uint8_t mac[6];
-  ESP_ERROR_CHECK(esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP));
-  sprintf(
-      (char *)wifi_ap_config.ap.ssid,
-      "%s%02x%02x%02x",
-      CONFIG_WIFI_AP_SSID,
-      mac[3],
-      mac[4],
-      mac[5]
-  );
-
   dmxbox_wifi_event_group = xEventGroupCreate();
 
   ESP_ERROR_CHECK(esp_netif_init());

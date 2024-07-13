@@ -133,3 +133,20 @@ exit:
   }
   return ret;
 }
+
+esp_err_t dmxbox_api_effect_step_endpoint(
+    httpd_req_t *req,
+    uint16_t effect_id,
+    uint16_t step_id
+) {
+  if (req->method == HTTP_GET) {
+    return dmxbox_api_effect_step_get(req, effect_id, step_id);
+  } else {
+    ESP_RETURN_ON_ERROR(
+        httpd_resp_set_status(req, "405 Method Not Allowed"),
+        TAG,
+        "failed to send 405"
+    );
+  }
+  return ESP_OK;
+}

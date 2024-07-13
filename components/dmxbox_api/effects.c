@@ -71,8 +71,8 @@ static esp_err_t dmxbox_api_effect_parse_uri(
   return ESP_ERR_NOT_FOUND;
 }
 
-esp_err_t dmxbox_api_effects_get(httpd_req_t *req) {
-  ESP_LOGI(TAG, "GET %s", req->uri);
+esp_err_t dmxbox_api_effects_endpoint(httpd_req_t *req) {
+  ESP_LOGI(TAG, "got '%s'", req->uri);
 
   uint16_t effect_id = 0;
   uint16_t step_id = 0;
@@ -94,20 +94,26 @@ esp_err_t dmxbox_api_effects_get(httpd_req_t *req) {
     // step list
     return dmxbox_httpd_send_jsonstr(req, "[]");
   } else {
-    return dmxbox_api_effect_step_get(req, effect_id, step_id);
+    return dmxbox_api_effect_step_endpoint(req, effect_id, step_id);
   }
 }
 
 esp_err_t dmxbox_api_effects_register(httpd_handle_t server) {
-  static const httpd_uri_t list = {
+  httpd_uri_t endpoint = {
       .uri = "/api/effects/*",
       .method = HTTP_GET,
-      .handler = dmxbox_api_effects_get,
+      .handler = dmxbox_api_effects_endpoint,
   };
   ESP_RETURN_ON_ERROR(
-      httpd_register_uri_handler(server, &list),
+      httpd_register_uri_handler(server, &endpoint),
       TAG,
-      "failed to register list endpoint"
+      "failed to register GET endpoint"
+  );
+  endpoint.method = HTTP_PUT;
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &endpoint),
+      TAG,
+      "failed to register PUT endpoint"
   );
   return ESP_OK;
 }
