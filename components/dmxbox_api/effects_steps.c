@@ -1,6 +1,7 @@
 #include "cJSON.h"
 #include "dmxbox_httpd.h"
 #include "dmxbox_storage.h"
+#include "effect_step_storage.h"
 #include "esp_err.h"
 #include "serializer.h"
 #include <esp_check.h>
@@ -25,11 +26,30 @@ static cJSON *dmxbox_api_channel_to_json(const dmxbox_storage_channel_t *c) {
   return size < sizeof(buffer) ? cJSON_CreateString(buffer) : NULL;
 }
 
+static bool
+dmxbox_api_channel_from_json(const cJSON *json, dmxbox_storage_channel_t *c) {
+  if (!cJSON_IsString(json)) {
+    ESP_LOGE(TAG, "channel is not a string");
+    return false;
+  }
+
+  // TODO non-zero universes
+  int value = atoi(json->valuestring);
+  if (value < 1 || value > 512) {
+    ESP_LOGE(TAG, "channel out of range: %d", value);
+    return false;
+  }
+
+  c->index = value;
+  return true;
+}
+
 BEGIN_DMXBOX_API_SERIALIZER(dmxbox_storage_channel_level_t, channel_level)
-DMXBOX_API_SERIALIZE_SUB_OBJECT(
+DMXBOX_API_SERIALIZE_ITEM(
     dmxbox_storage_channel_level_t,
     channel,
-    dmxbox_api_channel_to_json
+    dmxbox_api_channel_to_json,
+    dmxbox_api_channel_from_json
 )
 DMXBOX_API_SERIALIZE_U8(dmxbox_storage_channel_level_t, level)
 END_DMXBOX_API_SERIALIZER(dmxbox_storage_channel_level_t, channel_level)
@@ -43,7 +63,8 @@ DMXBOX_API_SERIALIZE_TRAILING_ARRAY(
     dmxbox_storage_effect_step_t,
     channels,
     channel_count,
-    dmxbox_channel_level_to_json
+    dmxbox_channel_level_to_json,
+    dmxbox_channel_level_from_json
 )
 END_DMXBOX_API_SERIALIZER(dmxbox_storage_effect_step_t, effect_step)
 
@@ -104,7 +125,28 @@ esp_err_t dmxbox_api_effect_step_put(
   default:
     return ret;
   }
-  return ESP_OK;
+
+  cJSON *json = NULL;
+  ESP_RETURN_ON_ERROR(
+      dmxbox_httpd_receive_json(req, &json),
+      TAG,
+      "failed to receive json"
+  );
+
+  dmxbox_storage_effect_step_t *parsed = dmxbox_effect_step_from_json(json);
+  cJSON_free(json);
+
+  if (!parsed) {
+    ESP_RETURN_ON_ERROR(
+        httpd_resp_set_status(req, HTTPD_400),
+        TAG,
+        "failed to send 400"
+    );
+    return httpd_resp_send(req, NULL, 0);
+  }
+
+  json = dmxbox_effect_step_to_json(parsed);
+  return dmxbox_httpd_send_json(req, json);
 }
 
 esp_err_t dmxbox_api_effect_step_endpoint(
