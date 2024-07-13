@@ -52,6 +52,8 @@ esp_err_t dmxbox_api_effect_step_get(
     uint16_t effect_id,
     uint16_t step_id
 ) {
+  ESP_LOGI(TAG, "GET effect=%u step=%u", effect_id, step_id);
+
   dmxbox_storage_effect_step_t *effect_step = NULL;
   esp_err_t ret =
       dmxbox_storage_effect_step_get(effect_id, step_id, &effect_step);
@@ -92,6 +94,7 @@ esp_err_t dmxbox_api_effect_step_put(
     uint16_t effect_id,
     uint16_t step_id
 ) {
+  ESP_LOGI(TAG, "PUT effect=%u step=%u", effect_id, step_id);
   esp_err_t ret = dmxbox_storage_effect_step_get(effect_id, step_id, NULL);
   switch (ret) {
   case ESP_OK:
@@ -112,6 +115,7 @@ esp_err_t dmxbox_api_effect_step_endpoint(
   if (req->method == HTTP_GET) {
     return dmxbox_api_effect_step_get(req, effect_id, step_id);
   } else if (req->method == HTTP_PUT) {
+    return dmxbox_api_effect_step_put(req, effect_id, step_id);
   } else {
     ESP_RETURN_ON_ERROR(
         httpd_resp_set_status(req, "405 Method Not Allowed"),
