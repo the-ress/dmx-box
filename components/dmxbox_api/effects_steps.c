@@ -147,6 +147,7 @@ esp_err_t dmxbox_api_effect_step_endpoint(
         TAG,
         "failed to send 405"
     );
+    return httpd_resp_send(req, NULL, 0);
   }
   return ESP_OK;
 }
