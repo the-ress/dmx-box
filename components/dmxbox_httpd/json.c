@@ -59,6 +59,20 @@ esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json) {
   return ESP_OK;
 }
 
+esp_err_t dmxbox_httpd_send_jsonstr(httpd_req_t *req, const char *json) {
+  ESP_RETURN_ON_ERROR(
+      httpd_resp_set_type(req, HTTPD_TYPE_JSON),
+      TAG,
+      "failed to set content type"
+  );
+  ESP_RETURN_ON_ERROR(
+      httpd_resp_sendstr(req, json),
+      TAG,
+      "failed to send response"
+  );
+  return ESP_OK;
+}
+
 esp_err_t dmxbox_httpd_send_json(httpd_req_t *req, cJSON *json) {
   if (!cJSON_PrintPreallocated(
           json,
@@ -68,15 +82,5 @@ esp_err_t dmxbox_httpd_send_json(httpd_req_t *req, cJSON *json) {
       )) {
     return ESP_ERR_INVALID_SIZE;
   }
-  ESP_RETURN_ON_ERROR(
-      httpd_resp_set_type(req, HTTPD_TYPE_JSON),
-      TAG,
-      "failed to set content type"
-  );
-  ESP_RETURN_ON_ERROR(
-      httpd_resp_sendstr(req, dmxbox_httpd_scratch),
-      TAG,
-      "failed to send response"
-  );
-  return ESP_OK;
+  return dmxbox_httpd_send_jsonstr(req, dmxbox_httpd_scratch);
 }

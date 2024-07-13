@@ -23,7 +23,27 @@ static esp_err_t dmxbox_storage_effect_step_key(
   return ESP_OK;
 }
 
-esp_err_t dmxbox_storage_get_effect_step(
+size_t dmxbox_storage_effect_step_size(size_t channel_count) {
+  return sizeof(dmxbox_storage_effect_step_t) +
+         (channel_count - 1) * sizeof(dmxbox_storage_channel_level_t);
+}
+
+size_t dmxbox_storage_effect_step_channel_count(size_t blob_size) {
+  static const size_t header_size = sizeof(dmxbox_storage_effect_step_t) -
+                                    sizeof(dmxbox_storage_channel_level_t);
+  if (blob_size < header_size) {
+    return 0;
+  }
+  return (blob_size - header_size) / sizeof(dmxbox_storage_channel_level_t);
+}
+
+dmxbox_storage_effect_step_t *
+dmxbox_storage_effect_step_alloc(size_t channel_count) {
+  size_t size = dmxbox_storage_effect_step_size(channel_count);
+  return calloc(1, size);
+}
+
+esp_err_t dmxbox_storage_effect_step_get(
     uint16_t effect_id,
     uint16_t step_id,
     size_t *channel_count,
@@ -66,25 +86,21 @@ esp_err_t dmxbox_storage_get_effect_step(
   );
 
   *result = buffer;
-  *channel_count = (size - sizeof(dmxbox_storage_effect_step_t)) /
-                       sizeof(dmxbox_storage_channel_level_t) +
-                   1;
+  *channel_count = dmxbox_storage_effect_step_channel_count(size);
 
 close_storage:
   nvs_close(storage);
   return ret;
 }
 
-esp_err_t dmxbox_storage_put_effect_step(
+esp_err_t dmxbox_storage_effect_step_set(
     uint16_t effect_id,
     uint16_t step_id,
     size_t channel_count,
     const dmxbox_storage_effect_step_t *value
 ) {
   esp_err_t ret = ESP_OK;
-
-  size_t size = sizeof(dmxbox_storage_effect_step_t) +
-                sizeof(dmxbox_storage_channel_level_t) * (channel_count - 1);
+  size_t size = dmxbox_storage_effect_step_size(channel_count);
 
   nvs_handle_t storage;
   ESP_RETURN_ON_ERROR(

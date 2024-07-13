@@ -16,7 +16,7 @@ esp_err_t dmxbox_httpd_cors_register_options(httpd_handle_t server, const char *
 
 esp_err_t dmxbox_httpd_receive_json(httpd_req_t *req, cJSON **json);
 
-// will free the json
 esp_err_t dmxbox_httpd_send_json(httpd_req_t *req, cJSON *json);
+esp_err_t dmxbox_httpd_send_jsonstr(httpd_req_t *req, const char *json);
 
 esp_err_t dmxbox_httpd_statics_register(httpd_handle_t server);

@@ -29,15 +29,17 @@ typedef struct dmxbox_storage_effect_step {
   dmxbox_storage_channel_level_t channels[1];
 } dmxbox_storage_effect_step_t;
 
+dmxbox_storage_effect_step_t *dmxbox_storage_effect_alloc(size_t channel_count);
+
 // caller must free() the result if ESP_OK
-esp_err_t dmxbox_storage_get_effect_step(
+esp_err_t dmxbox_storage_effect_step_get(
     uint16_t effect_id,
     uint16_t step_id,
     size_t *channel_count,
     dmxbox_storage_effect_step_t **result
 );
 
-esp_err_t dmxbox_storage_put_effect_step(
+esp_err_t dmxbox_storage_effect_step_set(
     uint16_t effect_id,
     uint16_t step_id,
     size_t channel_count,

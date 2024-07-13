@@ -115,7 +115,7 @@ static uint32_t get_step_out_end_offset(step_t *step) {
 }
 
 void dmxbox_effects_initialize() {
-  dmxbox_storage_effect_step_t *step1 = calloc(
+  dmxbox_storage_effect_step_t *step1 =  calloc(
       1,
       sizeof(dmxbox_storage_effect_step_t) +
           (2 - 1) * sizeof(dmxbox_storage_channel_level_t)
@@ -170,9 +170,9 @@ void dmxbox_effects_initialize() {
 
   uint16_t effect_id = 1;
 
-  dmxbox_storage_put_effect_step(effect_id, 1, 2, step1);
-  dmxbox_storage_put_effect_step(effect_id, 2, 2, step2);
-  dmxbox_storage_put_effect_step(effect_id, 3, 5, step3);
+  dmxbox_storage_effect_step_set(effect_id, 1, 2, step1);
+  dmxbox_storage_effect_step_set(effect_id, 2, 2, step2);
+  dmxbox_storage_effect_step_set(effect_id, 3, 5, step3);
 
   free(step1);
   free(step2);
@@ -190,7 +190,7 @@ void dmxbox_effects_initialize() {
 
     size_t channel_count;
     dmxbox_storage_effect_step_t *step_data;
-    ESP_ERROR_CHECK(dmxbox_storage_get_effect_step(
+    ESP_ERROR_CHECK(dmxbox_storage_effect_step_get(
         effect_id,
         step_id,
         &channel_count,

@@ -1,7 +1,7 @@
 #include "dmxbox_api.h"
 #include "api_config.h"
 #include "dmxbox_httpd.h"
-#include "effects_steps.h"
+#include "effects.h"
 #include "settings_sta.h"
 #include "ws.h"
 #include <esp_check.h>
@@ -23,7 +23,7 @@ esp_err_t dmxbox_api_register(httpd_handle_t server) {
       "api_config register failed"
   );
   ESP_RETURN_ON_ERROR(
-      dmxbox_api_effect_steps_register(server),
+      dmxbox_api_effects_register(server),
       TAG,
       "effects steps register failed"
   );
