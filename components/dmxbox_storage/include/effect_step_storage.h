@@ -1,6 +1,7 @@
 #pragma once
 #include "channel_types.h"
 #include "effect_storage.h"
+#include "entry.h"
 #include "universe_storage.h"
 #include <esp_err.h>
 #include <stddef.h>
@@ -28,6 +29,12 @@ esp_err_t dmxbox_effect_step_get(
     uint16_t effect_id,
     uint16_t step_id,
     dmxbox_effect_step_t **result
+);
+
+esp_err_t dmxbox_effect_step_list(
+    uint16_t skip,
+    uint16_t *count,
+    dmxbox_storage_entry_t *page
 );
 
 esp_err_t dmxbox_effect_step_set(

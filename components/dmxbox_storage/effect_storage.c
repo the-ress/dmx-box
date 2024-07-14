@@ -1,11 +1,12 @@
 #include "effect_storage.h"
 #include "dmxbox_storage.h"
+#include "entry.h"
 #include "esp_err.h"
 #include "private.h"
 #include <esp_check.h>
 #include <nvs.h>
 
-static const char effect_ns[] = "dmxbox/effect";
+static const char EFFECTS_NS[] = "dmxbox/effect";
 static const char TAG[] = "dmxbox_storage_effect";
 static const char NEXT_ID[] = "next_id";
 
@@ -16,15 +17,6 @@ static esp_err_t make_key(uint16_t effect_id, char key[NVS_KEY_NAME_MAX_SIZE]) {
     return ESP_ERR_NO_MEM;
   }
   return ESP_OK;
-}
-
-static uint16_t parse_key(char key[NVS_KEY_NAME_MAX_SIZE]) {
-  char *last = NULL;
-  long value = strtol(key, &last, 16);
-  if (*last != '\0' || value < 0) {
-    return 0;
-  }
-  return (uint16_t)value;
 }
 
 esp_err_t dmxbox_effect_get(uint16_t effect_id, dmxbox_effect_t **result) {
@@ -39,7 +31,7 @@ esp_err_t dmxbox_effect_get(uint16_t effect_id, dmxbox_effect_t **result) {
   size_t size = 0;
   void *buffer = NULL;
   ESP_RETURN_ON_ERROR(
-      dmxbox_storage_get_blob(effect_ns, key, &size, result ? &buffer : NULL),
+      dmxbox_storage_get_blob(EFFECTS_NS, key, &size, result ? &buffer : NULL),
       TAG,
       "failed to get the blob for key '%s'",
       key
@@ -56,76 +48,9 @@ esp_err_t dmxbox_effect_get(uint16_t effect_id, dmxbox_effect_t **result) {
 esp_err_t dmxbox_effect_list(
     uint16_t skip,
     uint16_t *count,
-    dmxbox_effect_entry_t *page
+    dmxbox_storage_entry_t *page
 ) {
-  if (!count || !page) {
-    return ESP_ERR_INVALID_ARG;
-  }
-
-  nvs_handle_t storage;
-  esp_err_t ret = nvs_open(effect_ns, NVS_READONLY, &storage);
-  switch (ret) {
-  case ESP_OK:
-    break;
-  case ESP_ERR_NVS_NOT_FOUND:
-    *count = 0;
-    return ESP_OK;
-  default:
-    ESP_LOGE(TAG, "failed to open storage");
-    return ret;
-  }
-
-  nvs_iterator_t iterator = NULL;
-  ESP_GOTO_ON_ERROR(
-      nvs_entry_find_in_handle(storage, NVS_TYPE_BLOB, &iterator),
-      exit,
-      TAG,
-      "failed to find first"
-  );
-
-  size_t read = 0;
-  while (ret == ESP_OK && read < *count) {
-    if (skip == 0) {
-      nvs_entry_info_t entry_info;
-      nvs_entry_info(iterator, &entry_info);
-
-      page[read].id = parse_key(entry_info.key);
-      if (!page[read].id) {
-        ESP_LOGE(TAG, "skipping invalid key '%s'", entry_info.key);
-        goto next;
-      }
-
-      void *buffer = NULL;
-      ret = dmxbox_storage_get_blob_from_storage(
-          storage,
-          entry_info.key,
-          &page[read].size,
-          &buffer
-      );
-      if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "failed to get blob '%s'", entry_info.key);
-        goto next;
-      }
-      page[read].effect = buffer;
-      read++;
-    } else {
-      skip--;
-    }
-
-  next:
-    ret = nvs_entry_next(&iterator);
-  }
-  if (ret == ESP_ERR_NVS_NOT_FOUND) {
-    ret = ESP_OK;
-  }
-  *count = read;
-
-exit:
-  if (iterator) {
-    nvs_release_iterator(iterator);
-  }
-  nvs_close(storage);
-  return ret;
+  return dmxbox_storage_list_blobs(EFFECTS_NS, NULL, NULL, skip, count, page);
 }
 
 esp_err_t dmxbox_effect_create(const dmxbox_effect_t *effect, uint16_t *id) {
@@ -135,10 +60,10 @@ esp_err_t dmxbox_effect_create(const dmxbox_effect_t *effect, uint16_t *id) {
 
   nvs_handle_t storage;
   ESP_RETURN_ON_ERROR(
-      nvs_open(effect_ns, NVS_READWRITE, &storage),
+      nvs_open(EFFECTS_NS, NVS_READWRITE, &storage),
       TAG,
       "failed to open %s",
-      effect_ns
+      EFFECTS_NS
   );
 
   esp_err_t ret = nvs_get_u16(storage, NEXT_ID, id);

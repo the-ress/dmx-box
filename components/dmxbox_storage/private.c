@@ -1,8 +1,7 @@
-
 #include "private.h"
-#include "nvs.h"
 #include <esp_check.h>
 #include <esp_err.h>
+#include <nvs.h>
 #include <nvs_flash.h>
 
 // TODO change to dmxbox
@@ -146,5 +145,95 @@ esp_err_t dmxbox_storage_get_blob(
   if (ret == ESP_ERR_NVS_NOT_FOUND) {
     return ESP_ERR_NOT_FOUND;
   }
+  return ret;
+}
+
+static uint16_t default_id_parser(const char *key, void *context) {
+  char *last = NULL;
+  long value = strtol(key, &last, 16);
+  if (*last != '\0' || value < 0) {
+    return 0;
+  }
+  return (uint16_t)value;
+}
+
+esp_err_t dmxbox_storage_list_blobs(
+    const char *ns,
+    dmxbox_storage_parse_id_t id_parser,
+    void *id_parser_ctx,
+    uint16_t skip,
+    uint16_t *count,
+    dmxbox_storage_entry_t *page
+) {
+  if (!count || !page) {
+    return ESP_ERR_INVALID_ARG;
+  }
+  if (!id_parser) {
+    id_parser = default_id_parser;
+  }
+
+  nvs_handle_t storage;
+  esp_err_t ret = nvs_open(ns, NVS_READONLY, &storage);
+  switch (ret) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_NVS_NOT_FOUND:
+    *count = 0;
+    return ESP_OK;
+  default:
+    ESP_LOGE(TAG, "failed to open storage");
+    return ret;
+  }
+
+  nvs_iterator_t iterator = NULL;
+  ESP_GOTO_ON_ERROR(
+      nvs_entry_find_in_handle(storage, NVS_TYPE_BLOB, &iterator),
+      exit,
+      TAG,
+      "failed to find first"
+  );
+
+  size_t read = 0;
+  while (ret == ESP_OK && read < *count) {
+    if (skip == 0) {
+      nvs_entry_info_t entry_info;
+      nvs_entry_info(iterator, &entry_info);
+
+      page[read].id = id_parser(entry_info.key, id_parser_ctx);
+      if (!page[read].id) {
+        ESP_LOGI(TAG, "key '%s' doesn't match", entry_info.key);
+        goto next;
+      }
+
+      void *buffer = NULL;
+      ret = dmxbox_storage_get_blob_from_storage(
+          storage,
+          entry_info.key,
+          &page[read].size,
+          &buffer
+      );
+      if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "failed to get blob '%s'", entry_info.key);
+        goto next;
+      }
+      page[read].data = buffer;
+      read++;
+    } else {
+      skip--;
+    }
+
+  next:
+    ret = nvs_entry_next(&iterator);
+  }
+  if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    ret = ESP_OK;
+  }
+  *count = read;
+
+exit:
+  if (iterator) {
+    nvs_release_iterator(iterator);
+  }
+  nvs_close(storage);
   return ret;
 }

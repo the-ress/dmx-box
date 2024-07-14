@@ -2,6 +2,7 @@
 #include "channel_types.h"
 #include "effect_step_storage.h"
 #include "effect_storage.h"
+#include "entry.h"
 #include "universe_storage.h"
 #include <esp_err.h>
 #include <nvs.h>

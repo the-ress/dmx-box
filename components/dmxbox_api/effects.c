@@ -99,7 +99,7 @@ dmxbox_api_effect_list(httpd_req_t *req, uint16_t unused_parent_id) {
     return result;
   }
 
-  dmxbox_effect_entry_t effects[30];
+  dmxbox_storage_entry_t effects[30];
   uint16_t count = sizeof(effects) / sizeof(effects[0]);
   if (dmxbox_effect_list(0, &count, effects) != ESP_OK) {
     ESP_LOGE(TAG, "failed to list effects");
@@ -108,7 +108,7 @@ dmxbox_api_effect_list(httpd_req_t *req, uint16_t unused_parent_id) {
   }
 
   for (size_t i = 0; i < count; i++) {
-    cJSON *json = dmxbox_effect_to_json(effects[i].effect);
+    cJSON *json = dmxbox_effect_to_json(effects[i].data);
     if (!json) {
       ESP_LOGE(TAG, "failed to serialize effect %u", effects[i].id);
       goto exit;
@@ -129,7 +129,7 @@ dmxbox_api_effect_list(httpd_req_t *req, uint16_t unused_parent_id) {
 
 exit:
   while (count--) {
-    free(effects[count].effect);
+    free(effects[count].data);
   }
   return result;
 }

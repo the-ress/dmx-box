@@ -1,4 +1,5 @@
 #pragma once
+#include "entry.h"
 #include <nvs_flash.h>
 
 nvs_handle_t dmxbox_storage_open(nvs_open_mode_t open_mode);
@@ -39,3 +40,14 @@ esp_err_t dmxbox_storage_get_blob(
 
 esp_err_t
 dmxbox_storage_get_blob_size(const char *ns, const char *key, size_t *size);
+
+typedef uint16_t (*dmxbox_storage_parse_id_t)(const char *key, void *ctx);
+
+esp_err_t dmxbox_storage_list_blobs(
+    const char *ns,
+    dmxbox_storage_parse_id_t id_parser,
+    void *id_parser_ctx,
+    uint16_t skip,
+    uint16_t *count,
+    dmxbox_storage_entry_t *page
+);
