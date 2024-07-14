@@ -19,6 +19,19 @@ static esp_err_t make_key(uint16_t effect_id, char key[NVS_KEY_NAME_MAX_SIZE]) {
   return ESP_OK;
 }
 
+static size_t effect_size(size_t step_count) {
+  return sizeof(dmxbox_effect_t) + (step_count - 1) * sizeof(uint16_t);
+}
+
+dmxbox_effect_t *dmxbox_effect_alloc(size_t step_count) {
+  size_t size = effect_size(step_count);
+  dmxbox_effect_t *effect = calloc(1, size);
+  if (effect) {
+    effect->step_count = step_count;
+  }
+  return effect;
+}
+
 esp_err_t dmxbox_effect_get(uint16_t effect_id, dmxbox_effect_t **result) {
   char key[NVS_KEY_NAME_MAX_SIZE];
   ESP_RETURN_ON_ERROR(

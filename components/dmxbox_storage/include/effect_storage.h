@@ -12,6 +12,8 @@ typedef struct dmxbox_effect {
   uint16_t steps[1];
 } dmxbox_effect_t;
 
+dmxbox_effect_t *dmxbox_effect_alloc(size_t step_count);
+
 esp_err_t dmxbox_effect_get(uint16_t effect_id, dmxbox_effect_t **result);
 esp_err_t dmxbox_effect_create(const dmxbox_effect_t *effect, uint16_t *id);
 esp_err_t dmxbox_effect_list(
