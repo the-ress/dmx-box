@@ -115,9 +115,9 @@ static uint32_t get_step_out_end_offset(step_t *step) {
 }
 
 void dmxbox_effects_init() {
-  dmxbox_storage_effect_step_t *step1 = dmxbox_storage_effect_step_alloc(2);
-  dmxbox_storage_effect_step_t *step2 = dmxbox_storage_effect_step_alloc(2);
-  dmxbox_storage_effect_step_t *step3 = dmxbox_storage_effect_step_alloc(5);
+  dmxbox_effect_step_t *step1 = dmxbox_effect_step_alloc(2);
+  dmxbox_effect_step_t *step2 = dmxbox_effect_step_alloc(2);
+  dmxbox_effect_step_t *step3 = dmxbox_effect_step_alloc(5);
   step1->time = 1000;
   step1->in = 250;
   step1->dwell = 250;
@@ -158,9 +158,9 @@ void dmxbox_effects_init() {
 
   uint16_t effect_id = 1;
 
-  dmxbox_storage_effect_step_set(effect_id, 1, step1);
-  dmxbox_storage_effect_step_set(effect_id, 2, step2);
-  dmxbox_storage_effect_step_set(effect_id, 3, step3);
+  dmxbox_effect_step_set(effect_id, 1, step1);
+  dmxbox_effect_step_set(effect_id, 2, step2);
+  dmxbox_effect_step_set(effect_id, 3, step3);
 
   free(step1);
   free(step2);
@@ -176,9 +176,9 @@ void dmxbox_effects_init() {
   for (uint16_t step_id = 1; step_id <= step_count; step_id++) {
     ESP_LOGI(TAG, "step %d", step_id);
 
-    dmxbox_storage_effect_step_t *step_data;
+    dmxbox_effect_step_t *step_data;
     ESP_ERROR_CHECK(
-        dmxbox_storage_effect_step_get(effect_id, step_id, &step_data)
+        dmxbox_effect_step_get(effect_id, step_id, &step_data)
     );
 
     step_t *step = step_alloc();

@@ -10,7 +10,7 @@
 
 static const char TAG[] = "dmxbox_api_effect_step";
 
-static cJSON *dmxbox_api_channel_to_json(const dmxbox_storage_channel_t *c) {
+static cJSON *dmxbox_api_channel_to_json(const dmxbox_channel_t *c) {
   char buffer[sizeof("127-16-16/512")];
   size_t size = c->universe.address
                     ? snprintf(
@@ -27,7 +27,7 @@ static cJSON *dmxbox_api_channel_to_json(const dmxbox_storage_channel_t *c) {
 }
 
 static bool
-dmxbox_api_channel_from_json(const cJSON *json, dmxbox_storage_channel_t *c) {
+dmxbox_api_channel_from_json(const cJSON *json, dmxbox_channel_t *c) {
   if (!cJSON_IsString(json)) {
     ESP_LOGE(TAG, "channel is not a string");
     return false;
@@ -46,27 +46,27 @@ dmxbox_api_channel_from_json(const cJSON *json, dmxbox_storage_channel_t *c) {
 
 BEGIN_DMXBOX_API_SERIALIZER(dmxbox_storage_channel_level_t, channel_level)
 DMXBOX_API_SERIALIZE_ITEM(
-    dmxbox_storage_channel_level_t,
+    dmxbox_channel_level_t,
     channel,
     dmxbox_api_channel_to_json,
     dmxbox_api_channel_from_json
 )
-DMXBOX_API_SERIALIZE_U8(dmxbox_storage_channel_level_t, level)
-END_DMXBOX_API_SERIALIZER(dmxbox_storage_channel_level_t, channel_level)
+DMXBOX_API_SERIALIZE_U8(dmxbox_channel_level_t, level)
+END_DMXBOX_API_SERIALIZER(dmxbox_channel_level_t, channel_level)
 
 BEGIN_DMXBOX_API_SERIALIZER(dmxbox_storage_effect_step_t, effect_step)
-DMXBOX_API_SERIALIZE_U32(dmxbox_storage_effect_step_t, time)
-DMXBOX_API_SERIALIZE_U32(dmxbox_storage_effect_step_t, in)
-DMXBOX_API_SERIALIZE_U32(dmxbox_storage_effect_step_t, dwell)
-DMXBOX_API_SERIALIZE_U32(dmxbox_storage_effect_step_t, out)
+DMXBOX_API_SERIALIZE_U32(dmxbox_effect_step_t, time)
+DMXBOX_API_SERIALIZE_U32(dmxbox_effect_step_t, in)
+DMXBOX_API_SERIALIZE_U32(dmxbox_effect_step_t, dwell)
+DMXBOX_API_SERIALIZE_U32(dmxbox_effect_step_t, out)
 DMXBOX_API_SERIALIZE_TRAILING_ARRAY(
-    dmxbox_storage_effect_step_t,
+    dmxbox_effect_step_t,
     channels,
     channel_count,
     dmxbox_channel_level_to_json,
     dmxbox_channel_level_from_json
 )
-END_DMXBOX_API_SERIALIZER(dmxbox_storage_effect_step_t, effect_step)
+END_DMXBOX_API_SERIALIZER(dmxbox_effect_step_t, effect_step)
 
 esp_err_t dmxbox_api_effect_step_get(
     httpd_req_t *req,
@@ -75,9 +75,9 @@ esp_err_t dmxbox_api_effect_step_get(
 ) {
   ESP_LOGI(TAG, "GET effect=%u step=%u", effect_id, step_id);
 
-  dmxbox_storage_effect_step_t *effect_step = NULL;
+  dmxbox_effect_step_t *effect_step = NULL;
   esp_err_t ret =
-      dmxbox_storage_effect_step_get(effect_id, step_id, &effect_step);
+      dmxbox_effect_step_get(effect_id, step_id, &effect_step);
   switch (ret) {
   case ESP_OK:
     break;
@@ -117,7 +117,7 @@ esp_err_t dmxbox_api_effect_step_put(
     uint16_t step_id
 ) {
   ESP_LOGI(TAG, "PUT effect=%u step=%u", effect_id, step_id);
-  esp_err_t ret = dmxbox_storage_effect_step_get(effect_id, step_id, NULL);
+  esp_err_t ret = dmxbox_effect_step_get(effect_id, step_id, NULL);
   switch (ret) {
   case ESP_OK:
     break;
@@ -134,7 +134,7 @@ esp_err_t dmxbox_api_effect_step_put(
       "failed to receive json"
   );
 
-  dmxbox_storage_effect_step_t *parsed =
+  dmxbox_effect_step_t *parsed =
       dmxbox_effect_step_from_json_alloc(json);
   cJSON_free(json);
 
@@ -143,7 +143,7 @@ esp_err_t dmxbox_api_effect_step_put(
     return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, NULL);
   }
 
-  ret = dmxbox_storage_effect_step_set(effect_id, step_id, parsed);
+  ret = dmxbox_effect_step_set(effect_id, step_id, parsed);
   free(parsed);
 
   if (ret == ESP_OK) {

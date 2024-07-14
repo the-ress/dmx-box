@@ -25,24 +25,24 @@ static esp_err_t step_key(
 }
 
 static size_t step_size(size_t channel_count) {
-  return sizeof(dmxbox_storage_effect_step_t) +
-         (channel_count - 1) * sizeof(dmxbox_storage_channel_level_t);
+  return sizeof(dmxbox_effect_step_t) +
+         (channel_count - 1) * sizeof(dmxbox_channel_level_t);
 }
 
-dmxbox_storage_effect_step_t *
-dmxbox_storage_effect_step_alloc(size_t channel_count) {
+dmxbox_effect_step_t *
+dmxbox_effect_step_alloc(size_t channel_count) {
   size_t size = step_size(channel_count);
-  dmxbox_storage_effect_step_t *effect_step = calloc(1, size);
+  dmxbox_effect_step_t *effect_step = calloc(1, size);
   if (effect_step) {
     effect_step->channel_count = channel_count;
   }
   return effect_step;
 }
 
-esp_err_t dmxbox_storage_effect_step_get(
+esp_err_t dmxbox_effect_step_get(
     uint16_t effect_id,
     uint16_t step_id,
-    dmxbox_storage_effect_step_t **result
+    dmxbox_effect_step_t **result
 ) {
   char key[NVS_KEY_NAME_MAX_SIZE];
   ESP_RETURN_ON_ERROR(
@@ -87,10 +87,10 @@ esp_err_t dmxbox_storage_effect_step_get(
   return ESP_OK;
 }
 
-esp_err_t dmxbox_storage_effect_step_set(
+esp_err_t dmxbox_effect_step_set(
     uint16_t effect_id,
     uint16_t step_id,
-    const dmxbox_storage_effect_step_t *value
+    const dmxbox_effect_step_t *value
 ) {
   esp_err_t ret = ESP_OK;
   size_t size = step_size(value->channel_count);
