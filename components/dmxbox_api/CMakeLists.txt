@@ -6,6 +6,7 @@ idf_component_register(
     dmxbox_uri.c
     effects.c
     effects_steps.c
+    router_effects.c
     settings_sta.c
     serializer.c
     ws.c

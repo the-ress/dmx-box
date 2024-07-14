@@ -132,16 +132,19 @@ esp_err_t dmxbox_storage_get_blob(
     void **buffer
 ) {
   nvs_handle_t storage;
-  ESP_RETURN_ON_ERROR(
-      nvs_open(ns, NVS_READONLY, &storage),
-      TAG,
-      "failed to open NVS"
-  );
-  esp_err_t ret =
-      dmxbox_storage_get_blob_from_storage(storage, key, size, buffer);
+  esp_err_t ret = nvs_open(ns, NVS_READONLY, &storage);
+  switch (ret) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_NVS_NOT_FOUND:
+    return ESP_ERR_NOT_FOUND;
+  default:
+    return ret;
+  }
+  ret = dmxbox_storage_get_blob_from_storage(storage, key, size, buffer);
   nvs_close(storage);
   if (ret == ESP_ERR_NVS_NOT_FOUND) {
-    ret = ESP_ERR_NOT_FOUND;
+    return ESP_ERR_NOT_FOUND;
   }
   return ret;
 }

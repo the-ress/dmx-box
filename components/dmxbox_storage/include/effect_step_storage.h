@@ -1,13 +1,9 @@
 #pragma once
+#include "channel_types.h"
 #include "universe_storage.h"
 #include <esp_err.h>
 #include <stddef.h>
 #include <stdint.h>
-
-typedef struct dmxbox_channel {
-  dmxbox_universe_t universe;
-  unsigned index : 9;
-} dmxbox_channel_t;
 
 typedef struct dmxbox_channel_level {
   dmxbox_channel_t channel;

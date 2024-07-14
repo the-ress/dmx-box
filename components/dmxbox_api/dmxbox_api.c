@@ -1,7 +1,7 @@
 #include "dmxbox_api.h"
 #include "api_config.h"
 #include "dmxbox_httpd.h"
-#include "effects.h"
+#include "router_effects.h"
 #include "settings_sta.h"
 #include "ws.h"
 #include <esp_check.h>

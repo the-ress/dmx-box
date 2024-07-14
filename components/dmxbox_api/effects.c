@@ -1,86 +1,25 @@
 #include "effects.h"
 #include "dmxbox_httpd.h"
-#include "dmxbox_uri.h"
-#include "effects_steps.h"
+#include "dmxbox_storage.h"
+#include "effect_storage.h"
 #include "esp_check.h"
-#include "esp_err.h"
 #include "esp_http_server.h"
-#include "http_parser.h"
-#include <cJSON.h>
+#include "serializer.h"
 #include <esp_log.h>
-#include <inttypes.h>
-#include <string.h>
 
 static const char TAG[] = "dmxbox_api_effect";
 
-typedef struct effect_uri {
-  uint16_t effect_id;
-  uint16_t step_id;
-  bool step_container;
-} effect_uri_t;
+BEGIN_DMXBOX_API_SERIALIZER(dmxbox_effect_t, effect)
+DMXBOX_API_SERIALIZE_U16(dmxbox_effect_t, level_channel)
+DMXBOX_API_SERIALIZE_U16(dmxbox_effect_t, rate_channel)
+DMXBOX_API_SERIALIZE_U32(dmxbox_effect_t, step_count)
+END_DMXBOX_API_SERIALIZER(dmxbox_effect_t, effect)
 
-static esp_err_t
-dmxbox_api_effect_parse_uri(httpd_req_t *req, effect_uri_t *result) {
-  if (!result) {
-    return ESP_ERR_INVALID_ARG;
-  }
-  result->effect_id = 0;
-  result->step_id = 0;
-  result->step_container = false;
+static esp_err_t dmxbox_api_effect_get(httpd_req_t *req, uint16_t effect_id) {
+  ESP_LOGI(TAG, "GET effect=%u", effect_id);
 
-  const char *uri = req->uri;
-  uri = dmxbox_uri_match_component("api", uri);
-  uri = dmxbox_uri_match_component("effects", uri);
-
-  if (!uri) {
-    return ESP_ERR_NOT_FOUND;
-  }
-  if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri=effect container");
-    return ESP_OK;
-  }
-
-  uri = dmxbox_uri_match_positive_u16(&result->effect_id, uri);
-  if (!uri) {
-    ESP_LOGW(TAG, "uri effect id not positive u16");
-    return ESP_ERR_NOT_FOUND;
-  }
-  if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri effect id %u", result->effect_id);
-    return ESP_OK;
-  }
-
-  uri = dmxbox_uri_match_component("steps", uri);
-  if (!uri) {
-    ESP_LOGW(TAG, "uri bad effect child");
-    return ESP_ERR_NOT_FOUND;
-  }
-
-  if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri step container");
-    result->step_container = true;
-    return ESP_OK;
-  }
-
-  uri = dmxbox_uri_match_positive_u16(&result->step_id, uri);
-  if (!uri) {
-    ESP_LOGW(TAG, "uri step id not positive u16");
-    return ESP_ERR_NOT_FOUND;
-  }
-  if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri step id %u", result->step_id);
-    return ESP_OK;
-  }
-
-  ESP_LOGW(TAG, "uri step trailing segments");
-  return ESP_ERR_NOT_FOUND;
-}
-
-esp_err_t dmxbox_api_effects_endpoint(httpd_req_t *req) {
-  ESP_LOGI(TAG, "got '%s'", req->uri);
-
-  effect_uri_t uri;
-  esp_err_t ret = dmxbox_api_effect_parse_uri(req, &uri);
+  dmxbox_effect_t *effect = NULL;
+  esp_err_t ret = dmxbox_effect_get(effect_id, &effect);
   switch (ret) {
   case ESP_OK:
     break;
@@ -90,36 +29,35 @@ esp_err_t dmxbox_api_effects_endpoint(httpd_req_t *req) {
     return ret;
   }
 
-  if (!uri.effect_id) {
-    // effect list
-    return dmxbox_httpd_send_jsonstr(req, "[]");
-  } else if (uri.step_container) {
-    // step list
-    return dmxbox_httpd_send_jsonstr(req, "[]");
-  } else if (!uri.step_id) {
-    // effect
-    return dmxbox_httpd_send_jsonstr(req, "{\"type\": \"effect\"}");
-  } else {
-    return dmxbox_api_effect_step_endpoint(req, uri.effect_id, uri.step_id);
+  cJSON *json = dmxbox_effect_to_json(effect);
+  if (!json) {
+    ESP_LOGE(TAG, "failed to serialize json");
+    ret = httpd_resp_send_500(req);
+    goto exit;
   }
+
+  ESP_GOTO_ON_ERROR(
+      dmxbox_httpd_send_json(req, json),
+      exit,
+      TAG,
+      "failed to send json"
+  );
+
+exit:
+  if (effect) {
+    free(effect);
+  }
+  if (json) {
+    cJSON_free(json);
+  }
+  return ret;
 }
 
-esp_err_t dmxbox_api_effects_register(httpd_handle_t server) {
-  httpd_uri_t endpoint = {
-      .uri = "/api/effects/*",
-      .method = HTTP_GET,
-      .handler = dmxbox_api_effects_endpoint,
-  };
-  ESP_RETURN_ON_ERROR(
-      httpd_register_uri_handler(server, &endpoint),
-      TAG,
-      "failed to register GET endpoint"
-  );
-  endpoint.method = HTTP_PUT;
-  ESP_RETURN_ON_ERROR(
-      httpd_register_uri_handler(server, &endpoint),
-      TAG,
-      "failed to register PUT endpoint"
-  );
-  return ESP_OK;
+esp_err_t dmxbox_api_effect_endpoint(httpd_req_t *req, uint16_t effect_id) {
+  if (req->method == HTTP_GET) {
+    return dmxbox_api_effect_get(req, effect_id);
+  } else if (req->method == HTTP_PUT) {
+    // return dmxbox_api_effect_put(req, effect_id);
+  }
+  return httpd_resp_send_err(req, HTTPD_405_METHOD_NOT_ALLOWED, NULL);
 }
