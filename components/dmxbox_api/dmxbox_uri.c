@@ -37,11 +37,16 @@ const char *dmxbox_uri_match_u16(uint16_t *result, const char *uri) {
     value *= 10;
     value += (*uri - '0');
   }
-  ESP_LOGI(TAG, "after loop: '%s'", uri ? uri : "NULL" );
+  ESP_LOGI(TAG, "after loop: '%s'", uri ? uri : "NULL");
   uri = dmxbox_uri_consume_segment_end(uri);
   ESP_LOGI(TAG, "consumed: '%s'", uri ? uri : "NULL");
   *result = uri ? value : 0;
   return uri;
+}
+
+const char *dmxbox_uri_match_positive_u16(uint16_t *result, const char *uri) {
+  uri = dmxbox_uri_match_u16(result, uri);
+  return uri && *result ? uri : NULL;
 }
 
 const char *dmxbox_uri_match_component(const char *expected, const char *uri) {
@@ -57,7 +62,7 @@ const char *dmxbox_uri_match_component(const char *expected, const char *uri) {
     }
   }
   if (*expected != '\0') {
-     return NULL;
+    return NULL;
   }
   return dmxbox_uri_consume_segment_end(uri);
 }

@@ -36,9 +36,9 @@ static esp_err_t dmxbox_api_effect_parse_uri(
     return ESP_OK;
   }
 
-  uri = dmxbox_uri_match_u16(effect_id, uri);
+  uri = dmxbox_uri_match_positive_u16(effect_id, uri);
   if (!uri) {
-    ESP_LOGW(TAG, "uri effect id not u16");
+    ESP_LOGW(TAG, "uri effect id not positive u16");
     return ESP_ERR_NOT_FOUND;
   }
   if (*uri == '\0') {
@@ -57,9 +57,9 @@ static esp_err_t dmxbox_api_effect_parse_uri(
     return ESP_OK;
   }
 
-  uri = dmxbox_uri_match_u16(step_id, uri);
+  uri = dmxbox_uri_match_positive_u16(step_id, uri);
   if (!uri) {
-    ESP_LOGW(TAG, "uri step id not u16");
+    ESP_LOGW(TAG, "uri step id not positive u16");
     return ESP_ERR_NOT_FOUND;
   }
   if (*uri == '\0') {
