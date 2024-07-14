@@ -1,9 +1,11 @@
 #include "effects.h"
 #include "api_strings.h"
+#include "cJSON.h"
 #include "dmxbox_httpd.h"
 #include "dmxbox_storage.h"
 #include "effect_storage.h"
 #include "esp_check.h"
+#include "esp_err.h"
 #include "esp_http_server.h"
 #include "serializer.h"
 #include <esp_log.h>
@@ -114,9 +116,67 @@ exit:
   return ret;
 }
 
+static esp_err_t dmxbox_api_effect_list(httpd_req_t *req) {
+  ESP_LOGI(TAG, "GET effects");
+
+  dmxbox_effect_entry_t effects[30];
+  uint16_t count = sizeof(effects) / sizeof(effects[0]);
+  esp_err_t ret = ESP_OK;
+  cJSON *array = NULL;
+
+  ESP_GOTO_ON_ERROR(
+      dmxbox_effect_list(0, &count, effects),
+      exit,
+      TAG,
+      "failed to list effects"
+  );
+
+  array = cJSON_CreateArray();
+  if (!array) {
+    ESP_LOGE(TAG, "failed to allocate array");
+    ret = ESP_ERR_NO_MEM;
+    goto exit;
+  }
+
+  for (size_t i = 0; i < count; i++) {
+    cJSON *json = dmxbox_effect_to_json(effects[i].effect);
+    if (!json) {
+      ESP_LOGE(TAG, "failed to serialize effect %u", effects[i].id);
+      ret = httpd_resp_send_500(req);
+      goto exit;
+    }
+    if (!cJSON_AddNumberToObject(json, "id", effects[i].id)) {
+      ESP_LOGE(TAG, "failed to add id for %u", effects[i].id);
+      ret = httpd_resp_send_500(req);
+      cJSON_free(json);
+      goto exit;
+    }
+    if (!cJSON_AddItemToArray(array, json)) {
+      ESP_LOGE(TAG, "failed to add effect %u to array", effects[i].id);
+      ret = httpd_resp_send_500(req);
+      cJSON_free(json);
+      goto exit;
+    }
+  }
+
+  ESP_GOTO_ON_ERROR(
+      dmxbox_httpd_send_json(req, array),
+      exit,
+      TAG,
+      "failed to send json"
+  );
+
+exit:
+  cJSON_free(array);
+  while (count--) {
+    free(effects[count].effect);
+  }
+  return ret;
+}
+
 esp_err_t dmxbox_api_effect_container_endpoint(httpd_req_t *req) {
   if (req->method == HTTP_GET) {
-    // return dmxbox_api_effect_list(req, effect_id);
+    return dmxbox_api_effect_list(req);
   } else if (req->method == HTTP_POST) {
     return dmxbox_api_effect_post(req);
   }

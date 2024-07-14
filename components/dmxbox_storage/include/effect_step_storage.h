@@ -1,5 +1,6 @@
 #pragma once
 #include "channel_types.h"
+#include "effect_storage.h"
 #include "universe_storage.h"
 #include <esp_err.h>
 #include <stddef.h>

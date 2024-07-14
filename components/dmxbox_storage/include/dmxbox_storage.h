@@ -4,6 +4,7 @@
 #include "effect_storage.h"
 #include "universe_storage.h"
 #include <esp_err.h>
+#include <nvs.h>
 #include <stdbool.h>
 #include <stdint.h>
 
