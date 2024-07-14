@@ -9,7 +9,9 @@
 #include "esp_http_server.h"
 #include "serializer.h"
 #include <esp_log.h>
+#include <math.h>
 #include <stdio.h>
+#include "dmxbox_rest.h"
 
 static const char TAG[] = "dmxbox_api_effect";
 
@@ -191,3 +193,4 @@ esp_err_t dmxbox_api_effect_endpoint(httpd_req_t *req, uint16_t effect_id) {
   }
   return httpd_resp_send_err(req, HTTPD_405_METHOD_NOT_ALLOWED, NULL);
 }
+

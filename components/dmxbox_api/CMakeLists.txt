@@ -3,7 +3,6 @@ idf_component_register(
     api_config.c
     api_strings.c
     dmxbox_api.c
-    dmxbox_uri.c
     effects.c
     effects_steps.c
     router_effects.c
@@ -13,9 +12,10 @@ idf_component_register(
     ws_ap_found.c
   INCLUDE_DIRS include
   REQUIRES
+    dmxbox_httpd
+    dmxbox_rest
     dmxbox_storage
     dmxbox_wifi
-    dmxbox_httpd
     esp_http_server
     json
     vfs

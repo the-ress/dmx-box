@@ -1,80 +1,26 @@
 #include "router_effects.h"
 #include "dmxbox_httpd.h"
-#include "dmxbox_uri.h"
+#include "dmxbox_rest.h"
 #include "effects.h"
 #include "effects_steps.h"
 #include <esp_check.h>
 
 static const char TAG[] = "dmxbox_api_router_effects";
 
-typedef struct effect_uri {
-  uint16_t effect_id;
-  uint16_t step_id;
-  bool step_container;
-} effect_uri_t;
+static const dmxbox_rest_child_container_t router_steps = {
+    .sibling = NULL,
+    .container = {.slug = "steps"},
+};
 
-static esp_err_t
-dmxbox_api_effect_parse_uri(httpd_req_t *req, effect_uri_t *result) {
-  if (!result) {
-    return ESP_ERR_INVALID_ARG;
-  }
-  result->effect_id = 0;
-  result->step_id = 0;
-  result->step_container = false;
-
-  const char *uri = req->uri;
-  uri = dmxbox_uri_match_component("api", uri);
-  uri = dmxbox_uri_match_component("effects", uri);
-
-  if (!uri) {
-    return ESP_ERR_NOT_FOUND;
-  }
-  if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri=effect container");
-    return ESP_OK;
-  }
-
-  uri = dmxbox_uri_match_positive_u16(&result->effect_id, uri);
-  if (!uri) {
-    ESP_LOGW(TAG, "uri effect id not positive u16");
-    return ESP_ERR_NOT_FOUND;
-  }
-  if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri effect id %u", result->effect_id);
-    return ESP_OK;
-  }
-
-  uri = dmxbox_uri_match_component("steps", uri);
-  if (!uri) {
-    ESP_LOGW(TAG, "uri bad effect child");
-    return ESP_ERR_NOT_FOUND;
-  }
-
-  if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri step container");
-    result->step_container = true;
-    return ESP_OK;
-  }
-
-  uri = dmxbox_uri_match_positive_u16(&result->step_id, uri);
-  if (!uri) {
-    ESP_LOGW(TAG, "uri step id not positive u16");
-    return ESP_ERR_NOT_FOUND;
-  }
-  if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri step id %u", result->step_id);
-    return ESP_OK;
-  }
-
-  ESP_LOGW(TAG, "uri step trailing segments");
-  return ESP_ERR_NOT_FOUND;
-}
+static const dmxbox_rest_container_t router = {
+    .slug = "effects",
+    .first_child = &router_steps};
 
 static esp_err_t dmxbox_api_effects_handler(httpd_req_t *req) {
   ESP_LOGI(TAG, "got '%s'", req->uri);
 
-  effect_uri_t uri;
-  esp_err_t ret = dmxbox_api_effect_parse_uri(req, &uri);
+  dmxbox_rest_uri_t uri;
+  esp_err_t ret = dmxbox_rest_parse_uri(&router, req, &uri);
   switch (ret) {
   case ESP_OK:
     break;
@@ -84,16 +30,14 @@ static esp_err_t dmxbox_api_effects_handler(httpd_req_t *req) {
     return ret;
   }
 
-  if (!uri.effect_id) {
-    return dmxbox_api_effect_container_endpoint(req);
-  } else if (uri.step_container) {
-    // step list
-    return dmxbox_httpd_send_jsonstr(req, "[]");
-  } else if (!uri.step_id) {
-    // effect
-    return dmxbox_api_effect_endpoint(req, uri.effect_id);
+  if (uri.parent_id) {
+    if (uri.child_id) {
+      return dmxbox_api_effect_step_endpoint(req, uri.parent_id, uri.child_id);
+    } else {
+      return dmxbox_api_effect_endpoint(req, uri.parent_id);
+    }
   } else {
-    return dmxbox_api_effect_step_endpoint(req, uri.effect_id, uri.step_id);
+    return dmxbox_api_effect_container_endpoint(req);
   }
 }
 
