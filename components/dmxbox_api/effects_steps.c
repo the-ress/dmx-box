@@ -1,6 +1,7 @@
 #include "api_strings.h"
 #include "cJSON.h"
 #include "dmxbox_httpd.h"
+#include "dmxbox_rest.h"
 #include "dmxbox_storage.h"
 #include "effect_step_storage.h"
 #include "esp_err.h"
@@ -35,7 +36,7 @@ DMXBOX_API_SERIALIZE_TRAILING_ARRAY(
 )
 END_DMXBOX_API_SERIALIZER(dmxbox_effect_step_t, effect_step)
 
-esp_err_t dmxbox_api_effect_step_get(
+dmxbox_rest_result_t dmxbox_api_effect_step_get(
     httpd_req_t *req,
     uint16_t effect_id,
     uint16_t step_id
@@ -48,39 +49,27 @@ esp_err_t dmxbox_api_effect_step_get(
   case ESP_OK:
     break;
   case ESP_ERR_NOT_FOUND:
-    return httpd_resp_send_404(req);
+    return dmxbox_rest_404_not_found;
   default:
-    return ret;
+    return dmxbox_rest_500_internal_server_error;
   }
 
   cJSON *json = dmxbox_effect_step_to_json(effect_step);
+  free(effect_step);
+
   if (!json) {
     ESP_LOGE(TAG, "failed to serialize json");
-    ret = ESP_FAIL;
-    goto exit;
+    return dmxbox_rest_500_internal_server_error;
   }
 
-  ESP_GOTO_ON_ERROR(
-      dmxbox_httpd_send_json(req, json),
-      exit,
-      TAG,
-      "failed to send json"
-  );
-
-exit:
-  if (effect_step) {
-    free(effect_step);
-  }
-  if (json) {
-    cJSON_free(json);
-  }
-  return ret;
+  return dmxbox_rest_result_json(json);
 }
 
-esp_err_t dmxbox_api_effect_step_put(
+dmxbox_rest_result_t dmxbox_api_effect_step_put(
     httpd_req_t *req,
     uint16_t effect_id,
-    uint16_t step_id
+    uint16_t step_id,
+    cJSON *json
 ) {
   ESP_LOGI(TAG, "PUT effect=%u step=%u", effect_id, step_id);
   esp_err_t ret = dmxbox_effect_step_get(effect_id, step_id, NULL);
@@ -88,46 +77,31 @@ esp_err_t dmxbox_api_effect_step_put(
   case ESP_OK:
     break;
   case ESP_ERR_NOT_FOUND:
-    return httpd_resp_send_404(req);
+    return dmxbox_rest_404_not_found;
   default:
-    return ret;
+    return dmxbox_rest_500_internal_server_error;
   }
 
-  cJSON *json = NULL;
-  ESP_RETURN_ON_ERROR(
-      dmxbox_httpd_receive_json(req, &json),
-      TAG,
-      "failed to receive json"
-  );
-
   dmxbox_effect_step_t *parsed = dmxbox_effect_step_from_json_alloc(json);
-  cJSON_free(json);
-
   if (!parsed) {
     ESP_LOGE(TAG, "failed to parse json");
-    return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, NULL);
+    return dmxbox_rest_400_bad_request;
   }
 
   ret = dmxbox_effect_step_set(effect_id, step_id, parsed);
   free(parsed);
 
   if (ret == ESP_OK) {
-    return dmxbox_httpd_send_204_no_content(req);
+    return dmxbox_rest_204_no_content;
   }
 
   ESP_LOGE(TAG, "failed to save effect step");
-  return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, NULL);
+  return dmxbox_rest_500_internal_server_error;
 }
 
-esp_err_t dmxbox_api_effect_step_endpoint(
-    httpd_req_t *req,
-    uint16_t effect_id,
-    uint16_t step_id
-) {
-  if (req->method == HTTP_GET) {
-    return dmxbox_api_effect_step_get(req, effect_id, step_id);
-  } else if (req->method == HTTP_PUT) {
-    return dmxbox_api_effect_step_put(req, effect_id, step_id);
-  }
-  return httpd_resp_send_err(req, HTTPD_405_METHOD_NOT_ALLOWED, NULL);
-}
+const dmxbox_rest_container_t effects_steps_router = {
+    .slug = "steps",
+    .get = dmxbox_api_effect_step_get,
+    .post = NULL,
+    .put = dmxbox_api_effect_step_put,
+};
