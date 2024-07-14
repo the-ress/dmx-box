@@ -37,5 +37,5 @@ esp_err_t dmxbox_storage_effect_step_get(
 esp_err_t dmxbox_storage_effect_step_set(
     uint16_t effect_id,
     uint16_t step_id,
-    const dmxbox_storage_effect_step_t *result
+    const dmxbox_storage_effect_step_t *value
 );

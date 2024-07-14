@@ -90,6 +90,7 @@ esp_err_t dmxbox_api_effect_step_get(
   cJSON *json = dmxbox_effect_step_to_json(effect_step);
   if (!json) {
     ESP_LOGE(TAG, "failed to serialize json");
+    ret = ESP_FAIL;
     goto exit;
   }
 
@@ -138,16 +139,19 @@ esp_err_t dmxbox_api_effect_step_put(
   cJSON_free(json);
 
   if (!parsed) {
-    ESP_RETURN_ON_ERROR(
-        httpd_resp_set_status(req, HTTPD_400),
-        TAG,
-        "failed to send 400"
-    );
-    return httpd_resp_send(req, NULL, 0);
+    ESP_LOGE(TAG, "failed to parse json");
+    return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, NULL);
   }
 
-  json = dmxbox_effect_step_to_json(parsed);
-  return dmxbox_httpd_send_json(req, json);
+  ret = dmxbox_storage_effect_step_set(effect_id, step_id, parsed);
+  free(parsed);
+
+  if (ret == ESP_OK) {
+    return dmxbox_httpd_send_204_no_content(req);
+  }
+
+  ESP_LOGE(TAG, "failed to save effect step");
+  return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, NULL);
 }
 
 esp_err_t dmxbox_api_effect_step_endpoint(
@@ -159,13 +163,6 @@ esp_err_t dmxbox_api_effect_step_endpoint(
     return dmxbox_api_effect_step_get(req, effect_id, step_id);
   } else if (req->method == HTTP_PUT) {
     return dmxbox_api_effect_step_put(req, effect_id, step_id);
-  } else {
-    ESP_RETURN_ON_ERROR(
-        httpd_resp_set_status(req, "405 Method Not Allowed"),
-        TAG,
-        "failed to send 405"
-    );
-    return httpd_resp_send(req, NULL, 0);
   }
-  return ESP_OK;
+  return httpd_resp_send_err(req, HTTPD_405_METHOD_NOT_ALLOWED, NULL);
 }
