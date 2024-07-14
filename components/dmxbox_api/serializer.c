@@ -1,7 +1,9 @@
 #include "serializer.h"
 #include "cJSON.h"
 #include <esp_log.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 static const char TAG[] = "dmxbox_serializer";
 
@@ -9,6 +11,27 @@ typedef cJSON *(*dmxbox_to_json_func_t)(const void *object);
 typedef bool (*dmxbox_from_json_func_t)(const cJSON *json, void *object);
 
 #define TRAILING_COUNT_OFFSET 0
+#define DESERIALIZE_LOG(level, x, format, ...)                                 \
+  ESP_LOG_LEVEL_LOCAL(                                                         \
+      level,                                                                   \
+      TAG,                                                                     \
+      "deserializing '%s' [+%zu] " format,                                     \
+      x->json_name,                                                            \
+      x->offset __VA_OPT__(, ) __VA_ARGS__                                     \
+  );
+#define DESERIALIZE_LOGE(...) DESERIALIZE_LOG(ESP_LOG_ERROR, __VA_ARGS__)
+#define DESERIALIZE_LOGI(...) DESERIALIZE_LOG(ESP_LOG_INFO, __VA_ARGS__)
+
+#define SERIALIZE_LOG(level, x, format, ...)                                   \
+  ESP_LOG_LEVEL_LOCAL(                                                         \
+      level,                                                                   \
+      TAG,                                                                     \
+      "serializing '%s' [+%zu] " format,                                       \
+      x->json_name,                                                            \
+      x->offset __VA_OPT__(, ) __VA_ARGS__                                     \
+  );
+#define SERIALIZE_LOGE(...) SERIALIZE_LOG(ESP_LOG_ERROR, __VA_ARGS__)
+#define SERIALIZE_LOGI(...) SERIALIZE_LOG(ESP_LOG_INFO, __VA_ARGS__)
 
 static void *at_offset(const void *ptr, size_t offset) {
   return (uint8_t *)ptr + offset;
@@ -45,6 +68,7 @@ static const cJSON *
 get_item(const dmxbox_serializer_entry_t *entry, const cJSON *json) {
   const cJSON *item = cJSON_GetObjectItemCaseSensitive(json, entry->json_name);
   if (!item) {
+    DESERIALIZE_LOGE(entry, " not found")
     ESP_LOGE(
         TAG,
         "deserializing [+%zu] '%s' not found",
@@ -55,49 +79,62 @@ get_item(const dmxbox_serializer_entry_t *entry, const cJSON *json) {
   return item;
 }
 
-static bool get_intvalue(
+static const cJSON *get_number(
     const dmxbox_serializer_entry_t *entry,
     const cJSON *json,
-    int *result
+    double min,
+    double max,
+    const char *type
 ) {
   const cJSON *item = get_item(entry, json);
   if (!item) {
     return false;
   }
   if (!cJSON_IsNumber(item)) {
-    ESP_LOGE(
-        TAG,
-        "deserializing [+%zu] '%s' => not a number",
-        entry->offset,
-        entry->json_name
-    );
-    return false;
+    DESERIALIZE_LOGE(entry, "not a number");
+    return NULL;
   }
-  *result = item->valueint;
-  return true;
+  if (item->valuedouble < min) {
+    DESERIALIZE_LOGE(entry, "too small for %s", type);
+    return NULL;
+  }
+  if (item->valuedouble > max) {
+    DESERIALIZE_LOGE(entry, "too large for %s", type);
+    return NULL;
+  }
+  return item;
 }
 
-static bool get_uintvalue(
+static bool get_double(
     const dmxbox_serializer_entry_t *entry,
     const cJSON *json,
-    uint32_t *result
+    double min,
+    double max,
+    const char *type,
+    double *valuedouble
 ) {
-  int intvalue;
-  if (!get_intvalue(entry, json, &intvalue)) {
-    return false;
+  const cJSON *item = get_number(entry, json, min, max, type);
+  if (item) {
+    *valuedouble = item->valuedouble;
+    return true;
   }
-  if (intvalue < 0) {
-    ESP_LOGE(
-        TAG,
-        "deserializing [+%zu] '%s' is negative: %d",
-        entry->offset,
-        entry->json_name,
-        intvalue
-    );
-    return false;
+  return false;
+}
+
+static bool get_int32(
+    const dmxbox_serializer_entry_t *entry,
+    const cJSON *json,
+    double min,
+    double max,
+    const char *type,
+    int32_t *valueint
+) {
+  const cJSON *item = get_number(entry, json, min, max, type);
+  if (item) {
+    *valueint = item->valueint;
+    return true;
   }
-  *result = (uint32_t)intvalue;
-  return true;
+  return false;
 }
 
 cJSON *dmxbox_serialize_u8(
@@ -105,13 +142,7 @@ cJSON *dmxbox_serialize_u8(
     const void *object
 ) {
   const uint8_t *ptr = (uint8_t *)at_offset(object, entry->offset);
-  ESP_LOGI(
-      TAG,
-      "serializing [+%zu] '%s' => %" PRIu8 " (u8)",
-      entry->offset,
-      entry->json_name,
-      *ptr
-  );
+  SERIALIZE_LOGI(entry, "(u8) %" PRIu8, *ptr);
   return cJSON_CreateNumber(*ptr);
 }
 
@@ -120,29 +151,13 @@ bool dmxbox_deserialize_u8(
     const cJSON *json,
     void *object
 ) {
-  uint32_t uintvalue;
-  if (!get_uintvalue(entry, json, &uintvalue)) {
+  int32_t intvalue;
+  if (!get_int32(entry, json, 0, UINT8_MAX, "u8", &intvalue)) {
     return false;
   }
-  if (uintvalue > UINT8_MAX) {
-    ESP_LOGE(
-        TAG,
-        "deserializing [+%zu] '%s' too large for u8: %" PRIu32,
-        entry->offset,
-        entry->json_name,
-        uintvalue
-    );
-    return false;
-  }
-  ESP_LOGI(
-      TAG,
-      "deserializing [+%zu] '%s' => %" PRIu32 " (u8)",
-      entry->offset,
-      entry->json_name,
-      uintvalue
-  );
+  DESERIALIZE_LOGI(entry, "(u8) %" PRId32, intvalue);
   uint8_t *ptr = (uint8_t *)at_offset(object, entry->offset);
-  *ptr = (uint8_t)uintvalue;
+  *ptr = (uint8_t)intvalue;
   return true;
 }
 
@@ -151,13 +166,7 @@ cJSON *dmxbox_serialize_u16(
     const void *object
 ) {
   const uint16_t *ptr = (uint16_t *)at_offset(object, entry->offset);
-  ESP_LOGI(
-      TAG,
-      "serializing [+%zu] '%s' => %" PRIu16 " (u16)",
-      entry->offset,
-      entry->json_name,
-      *ptr
-  );
+  SERIALIZE_LOGI(entry, "(u16) %" PRIu16, *ptr);
   return cJSON_CreateNumber(*ptr);
 }
 
@@ -166,29 +175,13 @@ bool dmxbox_deserialize_u16(
     const cJSON *json,
     void *object
 ) {
-  uint32_t uintvalue;
-  if (!get_uintvalue(entry, json, &uintvalue)) {
+  int32_t intvalue;
+  if (!get_int32(entry, json, 0, UINT16_MAX, "u16", &intvalue)) {
     return false;
   }
-  if (uintvalue > UINT16_MAX) {
-    ESP_LOGE(
-        TAG,
-        "deserializing [+%zu] '%s' too large for u16: %" PRIu32,
-        entry->offset,
-        entry->json_name,
-        uintvalue
-    );
-    return false;
-  }
-  ESP_LOGI(
-      TAG,
-      "deserializing [+%zu] '%s' => %" PRIu32 " (u16)",
-      entry->offset,
-      entry->json_name,
-      uintvalue
-  );
+  DESERIALIZE_LOGI(entry, "(u16) %" PRId32, intvalue);
   uint16_t *ptr = (uint16_t *)at_offset(object, entry->offset);
-  *ptr = (uint16_t)uintvalue;
+  *ptr = (uint16_t)intvalue;
   return true;
 }
 
@@ -197,13 +190,7 @@ cJSON *dmxbox_serialize_u32(
     const void *object
 ) {
   const uint32_t *ptr = (uint32_t *)at_offset(object, entry->offset);
-  ESP_LOGI(
-      TAG,
-      "serializing [+%zu] '%s' => %" PRIu32 " (u32)",
-      entry->offset,
-      entry->json_name,
-      *ptr
-  );
+  SERIALIZE_LOGI(entry, "(u32) %" PRIu32, *ptr);
   return cJSON_CreateNumber(*ptr);
 }
 
@@ -212,17 +199,12 @@ bool dmxbox_deserialize_u32(
     const cJSON *json,
     void *object
 ) {
-  uint32_t uintvalue;
-  if (!get_uintvalue(entry, json, &uintvalue)) {
+  double valuedouble;
+  if (!get_double(entry, json, 0, UINT32_MAX, "u32", &valuedouble)) {
     return false;
   }
-  ESP_LOGI(
-      TAG,
-      "deserializing [+%zu] '%s' => %" PRIu32 " (u32)",
-      entry->offset,
-      entry->json_name,
-      uintvalue
-  );
+  uint32_t uintvalue = (uint32_t)valuedouble;
+  DESERIALIZE_LOGI(entry, "(u32) %" PRIu32, uintvalue);
   uint32_t *ptr = (uint32_t *)at_offset(object, entry->offset);
   *ptr = uintvalue;
   return true;
@@ -232,7 +214,7 @@ cJSON *dmxbox_serialize_item(
     const dmxbox_serializer_entry_t *entry,
     const void *object
 ) {
-  ESP_LOGI(TAG, "serializing [+%zu] item", entry->offset);
+  SERIALIZE_LOGI(entry, "item");
   const void *ptr = at_offset(object, entry->offset);
   dmxbox_to_json_func_t func = entry->context[0];
   return func(ptr);
@@ -243,6 +225,7 @@ bool dmxbox_deserialize_item(
     const cJSON *json,
     void *object
 ) {
+  DESERIALIZE_LOGI(entry, "item");
   const cJSON *item = get_item(entry, json);
   if (!item) {
     return false;
@@ -261,7 +244,12 @@ cJSON *dmxbox_serialize_trailing_array(
 
   const size_t *count_ptr = (size_t *)
       at_offset(object, (size_t)entry->context[TRAILING_COUNT_OFFSET]);
-  ESP_LOGI(TAG, "serializing %zu trailing item(s)", *count_ptr);
+  SERIALIZE_LOGI(
+      entry,
+      "trailing array of %zu %zu-byte item(s)",
+      *count_ptr,
+      item_size
+  );
 
   dmxbox_to_json_func_t ptr_to_json = entry->context[1];
 
@@ -270,12 +258,14 @@ cJSON *dmxbox_serialize_trailing_array(
     return NULL;
   }
   for (size_t i = 0; i < *count_ptr; i++) {
-    ESP_LOGI(TAG, "serializing trailing item %zu", i);
+    SERIALIZE_LOGI(entry, "item %zu", i);
     cJSON *item = ptr_to_json(array_ptr);
     if (!item) {
+      SERIALIZE_LOGE(entry, "item %zu failed to serialize", i);
       goto error;
     }
     if (!cJSON_AddItemToArray(json, item)) {
+      DESERIALIZE_LOGE(entry, "failed to add item %zu to json", i);
       cJSON_free(item);
       goto error;
     }
@@ -294,8 +284,8 @@ bool dmxbox_deserialize_trailing_array(
     const cJSON *json,
     void *object
 ) {
-  // dmxbox_deserialize_object knows about trailing arrays and will already have
-  // allocated the correct size and filled in the count field
+  // dmxbox_deserialize_object knows about trailing arrays and will already
+  // have allocated the correct size and filled in the count field
   const cJSON *json_array = get_item(entry, json);
   if (!json_array) {
     return false;
@@ -303,19 +293,20 @@ bool dmxbox_deserialize_trailing_array(
 
   dmxbox_from_json_func_t from_json = entry->context[2];
   size_t json_array_count = cJSON_GetArraySize(json_array);
+  DESERIALIZE_LOGI(entry, "array of %zu item(s)", json_array_count);
 
   void *array = at_offset(object, entry->offset);
   size_t array_item_size = get_trailing_array_item_size(entry);
 
   for (size_t i = 0; i < json_array_count; i++) {
+    DESERIALIZE_LOGI(entry, "item %zu", i);
     cJSON *json_item = cJSON_GetArrayItem(json_array, i);
     if (!json_item) {
-      ESP_LOGE(TAG, "couldn't get array index %zu", i);
+      DESERIALIZE_LOGE(entry, "failed to get item %zu", i);
       return false;
     }
-    ESP_LOGI(TAG, "deserializing index %zu", i);
     if (!from_json(json_item, array)) {
-      ESP_LOGE(TAG, "deserializing index %zu failed", i);
+      DESERIALIZE_LOGE(entry, "failed to deserialize item %zu", i);
       return false;
     }
     array = at_offset(array, array_item_size);
@@ -332,12 +323,13 @@ cJSON *dmxbox_serialize_object(
     return NULL;
   }
   while (entry->json_name) {
-    ESP_LOGI(TAG, "serializing %s", entry->json_name);
     cJSON *item = entry->serialize(entry, object);
     if (!item) {
+      DESERIALIZE_LOGE(entry, "failed to serialize");
       goto error;
     }
     if (!cJSON_AddItemToObjectCS(json, entry->json_name, item)) {
+      DESERIALIZE_LOGE(entry, "failed to add to json");
       cJSON_free(item);
       goto error;
     }
@@ -356,8 +348,8 @@ static bool dmxbox_deserialize_object_impl(
     void *object
 ) {
   while (entry && entry->json_name) {
-    ESP_LOGI(TAG, "deserializing %s", entry->json_name);
     if (!entry->deserialize(entry, json, object)) {
+      DESERIALIZE_LOGE(entry, "failed to deserialize");
       return false;
     }
     entry++;
