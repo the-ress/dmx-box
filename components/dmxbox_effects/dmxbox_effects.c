@@ -13,6 +13,8 @@
 #include "dmxbox_effects.h"
 #include "dmxbox_espnow.h"
 #include "dmxbox_storage.h"
+#include "effect_storage.h"
+#include "esp_err.h"
 
 static const char *TAG = "effects";
 
@@ -168,8 +170,31 @@ static void distributed_follower_callback(
   }
 }
 
-void dmxbox_effects_init() {
-  // Store a sample effect
+void create_sample_effect_if_needed() {
+  dmxbox_storage_entry_t effects[1];
+  uint16_t count = sizeof(effects) / sizeof(effects[0]);
+  if (dmxbox_effect_list(0, &count, effects) != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to list effects");
+    return;
+  }
+
+  if (count) {
+    free(effects[0].data);
+    return;
+  }
+
+  ESP_LOGI(TAG, "No effects found, creating a sample effect");
+
+  dmxbox_effect_t *effect1 = dmxbox_effect_alloc(3);
+  snprintf(effect1->name, sizeof(effect1->name), "%s", "test effect");
+  effect1->level_channel.index = 1;
+  effect1->rate_channel.index = 2;
+  effect1->steps[0] = 1;
+  effect1->steps[1] = 2;
+  effect1->steps[2] = 3;
+
+  uint16_t effect_id;
+  ESP_ERROR_CHECK(dmxbox_effect_create(effect1, &effect_id));
 
   dmxbox_effect_step_t *step1 = dmxbox_effect_step_alloc(2);
   dmxbox_effect_step_t *step2 = dmxbox_effect_step_alloc(2);
@@ -241,8 +266,6 @@ void dmxbox_effects_init() {
   // step3->channels[0].channel.index = 150;
   // step3->channels[0].level = 255;
 
-  uint16_t effect_id = 1;
-
   dmxbox_effect_step_set(effect_id, 1, step1);
   dmxbox_effect_step_set(effect_id, 2, step2);
   dmxbox_effect_step_set(effect_id, 3, step3);
@@ -254,19 +277,42 @@ void dmxbox_effects_init() {
   free(step1);
   free(step2);
   free(step3);
+}
 
-  // Load effect from storage
+void prepare_loaded_effect(effect_t *effect) {
+  effect->active = false;
+  effect->distributed_state.is_leader = false;
+  effect->distributed_state.last_sync_us = 0;
 
-  effect_t *effect1 = effect_alloc();
-  effect1->id = effect_id;
-  effect1->level_channel = 1;
-  effect1->rate_channel = 2;
-  effect1->distributed = true;
+  uint32_t current_offset_us = 0;
 
-  size_t step_count = 3;
+  int step_number = 1;
+  for (step_t *step = effect->steps_head; step;
+       step = step->next, step_number++) {
+    if ((step->in == 0) && (step->dwell == 0) && (step->out == 0)) {
+      step->dwell = step->time;
+    }
+
+    step->offset_us = current_offset_us;
+    current_offset_us += ms_to_us(step->time);
+  }
+
+  effect->effect_length_us = current_offset_us;
+}
+
+effect_t *load_effect(uint16_t effect_id, dmxbox_effect_t *effect_data) {
+  ESP_LOGI(TAG, "Loading effect %d (%s)", effect_id, effect_data->name);
+
+  effect_t *effect = effect_alloc();
+  effect->id = effect_id;
+  effect->level_channel = effect_data->level_channel.index;
+  effect->rate_channel = effect_data->rate_channel.index;
+  effect->distributed = true;
 
   step_t *steps_tail = NULL;
-  for (uint16_t step_id = 1; step_id <= step_count; step_id++) {
+  for (int i = 0; i < effect_data->step_count; i++) {
+    uint16_t step_id = effect_data->steps[i];
+
     ESP_LOGI(TAG, "step %d", step_id);
 
     dmxbox_effect_step_t *step_data;
@@ -310,40 +356,65 @@ void dmxbox_effects_init() {
       steps_tail->next = step;
       steps_tail = step;
     } else {
-      effect1->steps_head = steps_tail = step;
+      effect->steps_head = steps_tail = step;
     }
 
     free(step_data);
   }
 
-  effects_head = effect1;
+  prepare_loaded_effect(effect);
 
-  // Prepare internal state
+  return effect;
+}
 
-  for (effect_t *effect = effects_head; effect; effect = effect->next) {
-    effect->active = false;
-    effect->distributed_state.is_leader = false;
-    effect->distributed_state.last_sync_us = 0;
+effect_t *load_effects_from_storage() {
+  effect_t *head = NULL;
+  effect_t *tail = NULL;
 
-    uint32_t current_offset_us = 0;
+  dmxbox_storage_entry_t effects[10];
+  const uint16_t buffer_length = sizeof(effects) / sizeof(effects[0]);
 
-    int step_number = 1;
-    for (step_t *step = effect->steps_head; step;
-         step = step->next, step_number++) {
-      if ((step->in == 0) && (step->dwell == 0) && (step->out == 0)) {
-        step->dwell = step->time;
-      }
+  uint16_t count;
+  uint16_t skip = 0;
 
-      step->offset_us = current_offset_us;
-      current_offset_us += ms_to_us(step->time);
+  do {
+    count = buffer_length;
+    if (dmxbox_effect_list(skip, &count, effects) != ESP_OK) {
+      ESP_LOGE(TAG, "Failed to list effects");
+      return head;
     }
 
-    effect->effect_length_us = current_offset_us;
-  }
+    ESP_LOGI(TAG, "Loading %d effects", count);
 
+    skip += count;
+
+    for (size_t i = 0; i < count; i++) {
+      uint16_t effect_id = effects[i].id;
+      dmxbox_effect_t *effect_data = effects[i].data;
+
+      effect_t *effect = load_effect(effect_id, effect_data);
+      free(effect_data);
+
+      if (tail) {
+        tail->next = effect;
+        tail = effect;
+      } else {
+        head = tail = effect;
+      }
+    }
+  } while (count == buffer_length);
+
+  return head;
+}
+
+void dmxbox_effects_init() {
   for (int i = 0; i <= UINT8_MAX; i++) {
     rate_from_fader_level[i] = get_rate_from_fader_level(i);
   }
+
+  create_sample_effect_if_needed();
+
+  effects_head = load_effects_from_storage();
 
   effect_state_sync_queue =
       xQueueCreate(SYNC_QUEUE_SIZE, sizeof(effect_state_sync_event_t));
