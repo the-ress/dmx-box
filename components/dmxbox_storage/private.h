@@ -17,8 +17,9 @@ bool dmxbox_storage_get_str(
 );
 
 esp_err_t dmxbox_storage_set_blob(
-    nvs_handle_t storage,
-    const char *key,
+    const char *ns,
+    uint16_t parent_id,
+    uint16_t id,
     size_t size,
     const void *value
 );
@@ -30,10 +31,12 @@ esp_err_t dmxbox_storage_get_blob_from_storage(
     size_t *size,
     void **buffer
 );
+
 // caller must free() the *buffer when ESP_OK
 esp_err_t dmxbox_storage_get_blob(
     const char *ns,
-    const char *key,
+    uint16_t parent_id,
+    uint16_t id,
     size_t *size,
     void **buffer
 );
@@ -45,8 +48,7 @@ typedef uint16_t (*dmxbox_storage_parse_id_t)(const char *key, void *ctx);
 
 esp_err_t dmxbox_storage_list_blobs(
     const char *ns,
-    dmxbox_storage_parse_id_t id_parser,
-    void *id_parser_ctx,
+    uint16_t parent_id,
     uint16_t skip,
     uint16_t *count,
     dmxbox_storage_entry_t *page
@@ -54,7 +56,7 @@ esp_err_t dmxbox_storage_list_blobs(
 
 esp_err_t dmxbox_storage_create_blob(
     const char *ns,
-    const char *prefix,
+    uint16_t parent_id,
     const void *data,
     size_t size,
     uint16_t *id

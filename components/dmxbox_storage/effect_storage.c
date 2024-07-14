@@ -9,15 +9,6 @@
 static const char EFFECTS_NS[] = "dmxbox/effect";
 static const char TAG[] = "dmxbox_storage_effect";
 
-static esp_err_t make_key(uint16_t effect_id, char key[NVS_KEY_NAME_MAX_SIZE]) {
-  if (snprintf(key, NVS_KEY_NAME_MAX_SIZE, "%x", effect_id) >=
-      NVS_KEY_NAME_MAX_SIZE) {
-    ESP_LOGE(TAG, "key buffer too small");
-    return ESP_ERR_NO_MEM;
-  }
-  return ESP_OK;
-}
-
 static size_t effect_size(size_t step_count) {
   return sizeof(dmxbox_effect_t) + (step_count - 1) * sizeof(uint16_t);
 }
@@ -32,23 +23,20 @@ dmxbox_effect_t *dmxbox_effect_alloc(size_t step_count) {
 }
 
 esp_err_t dmxbox_effect_get(uint16_t effect_id, dmxbox_effect_t **result) {
-  char key[NVS_KEY_NAME_MAX_SIZE];
-  ESP_RETURN_ON_ERROR(
-      make_key(effect_id, key),
-      TAG,
-      "failed to get key for effect %u",
-      effect_id
-  );
-
   size_t size = 0;
   void *buffer = NULL;
   ESP_RETURN_ON_ERROR(
-      dmxbox_storage_get_blob(EFFECTS_NS, key, &size, result ? &buffer : NULL),
+      dmxbox_storage_get_blob(
+          EFFECTS_NS,
+          0,
+          effect_id,
+          &size,
+          result ? &buffer : NULL
+      ),
       TAG,
-      "failed to get the blob for key '%s'",
-      key
+      "failed to get the blob for effect id '%u'",
+      effect_id
   );
-
   if (result) {
     *result = buffer;
   } else {
@@ -62,13 +50,13 @@ esp_err_t dmxbox_effect_list(
     uint16_t *count,
     dmxbox_storage_entry_t *page
 ) {
-  return dmxbox_storage_list_blobs(EFFECTS_NS, NULL, NULL, skip, count, page);
+  return dmxbox_storage_list_blobs(EFFECTS_NS, 0, skip, count, page);
 }
 
 esp_err_t dmxbox_effect_create(const dmxbox_effect_t *effect, uint16_t *id) {
   return dmxbox_storage_create_blob(
       EFFECTS_NS,
-      NULL,
+      0,
       effect,
       effect_size(effect->step_count),
       id

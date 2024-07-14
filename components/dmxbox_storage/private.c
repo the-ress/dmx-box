@@ -11,6 +11,48 @@
 
 static const char *TAG = "dmx_box_storage";
 
+static bool make_next_id_key(char *key, size_t key_size, uint16_t parent_id) {
+  if (parent_id) {
+    return snprintf(key, key_size, "%x:next_id", parent_id) < key_size;
+  }
+  return strlcpy(key, "next_id", key_size) < key_size;
+}
+
+static bool
+make_blob_key(char *key, size_t key_size, uint16_t parent_id, uint16_t id) {
+  if (parent_id && id) {
+    return snprintf(key, key_size, "%x:%x", parent_id, id) < key_size;
+  }
+  if (id) {
+    return snprintf(key, key_size, "%x", id) < key_size;
+  }
+  return false;
+}
+
+static bool parse_blob_key(const char *key, uint16_t *parent_id, uint16_t *id) {
+  ESP_LOGI(TAG, "parsing blob key '%s'", key);
+  char *last = NULL;
+  long value = strtol(key, &last, 16);
+  if (value < 0) {
+    return false;
+  }
+  if (*last == '\0') {
+    *parent_id = 0;
+    *id = value;
+    return true;
+  }
+  if (*last == ':') {
+    *parent_id = value;
+    value = strtol(last + 1, &last, 16);
+    if (value < 0 || *last != '\0') {
+      return false;
+    }
+    *id = value;
+    return true;
+  }
+  return false;
+}
+
 nvs_handle_t dmxbox_storage_open(nvs_open_mode_t open_mode) {
   nvs_handle_t storage;
   esp_err_t result = nvs_open(DMXBOX_NVS_NS, open_mode, &storage);
@@ -128,7 +170,8 @@ free_buffer:
 
 esp_err_t dmxbox_storage_get_blob(
     const char *ns,
-    const char *key,
+    uint16_t parent_id,
+    uint16_t id,
     size_t *size,
     void **buffer
 ) {
@@ -142,7 +185,12 @@ esp_err_t dmxbox_storage_get_blob(
   default:
     return ret;
   }
-  ret = dmxbox_storage_get_blob_from_storage(storage, key, size, buffer);
+  char key[NVS_KEY_NAME_MAX_SIZE];
+  if (make_blob_key(key, sizeof(key), parent_id, id)) {
+    ret = dmxbox_storage_get_blob_from_storage(storage, key, size, buffer);
+  } else {
+    ret = ESP_ERR_NO_MEM;
+  }
   nvs_close(storage);
   if (ret == ESP_ERR_NVS_NOT_FOUND) {
     return ESP_ERR_NOT_FOUND;
@@ -150,28 +198,15 @@ esp_err_t dmxbox_storage_get_blob(
   return ret;
 }
 
-static uint16_t default_id_parser(const char *key, void *context) {
-  char *last = NULL;
-  long value = strtol(key, &last, 16);
-  if (*last != '\0' || value < 0) {
-    return 0;
-  }
-  return (uint16_t)value;
-}
-
 esp_err_t dmxbox_storage_list_blobs(
     const char *ns,
-    dmxbox_storage_parse_id_t id_parser,
-    void *id_parser_ctx,
+    uint16_t parent_id,
     uint16_t skip,
     uint16_t *count,
     dmxbox_storage_entry_t *page
 ) {
   if (!count || !page) {
     return ESP_ERR_INVALID_ARG;
-  }
-  if (!id_parser) {
-    id_parser = default_id_parser;
   }
 
   nvs_handle_t storage;
@@ -201,9 +236,21 @@ esp_err_t dmxbox_storage_list_blobs(
       nvs_entry_info_t entry_info;
       nvs_entry_info(iterator, &entry_info);
 
-      page[read].id = id_parser(entry_info.key, id_parser_ctx);
-      if (!page[read].id) {
-        ESP_LOGI(TAG, "key '%s' doesn't match", entry_info.key);
+      uint16_t entry_parent_id;
+      if (!parse_blob_key(entry_info.key, &entry_parent_id, &page[read].id)) {
+        ESP_LOGE(TAG, "key '%s' failed to parse", entry_info.key);
+        goto next;
+      }
+
+      ESP_LOGI(
+          TAG,
+          "key '%s' id=%u parent_id=%u ",
+          entry_info.key,
+          page[read].id,
+          entry_parent_id
+      );
+      if (entry_parent_id != parent_id) {
+        ESP_LOGI(TAG, "parent_id doesn't match %u", parent_id);
         goto next;
       }
 
@@ -242,16 +289,13 @@ exit:
 
 esp_err_t dmxbox_storage_create_blob(
     const char *ns,
-    const char *prefix,
+    uint16_t parent_id,
     const void *data,
     size_t size,
     uint16_t *id
 ) {
   if (!ns || !id) {
     return ESP_ERR_INVALID_ARG;
-  }
-  if (!prefix) {
-    prefix = "";
   }
 
   esp_err_t ret = ESP_OK;
@@ -264,8 +308,8 @@ esp_err_t dmxbox_storage_create_blob(
   );
 
   char key[NVS_KEY_NAME_MAX_SIZE];
-  if (snprintf(key, sizeof(key), "%s:next_id", prefix) >= sizeof(key)) {
-    ESP_LOGE(TAG, "failed to create next_id key for prefix '%s'", prefix);
+  if (!make_next_id_key(key, sizeof(key), parent_id)) {
+    ESP_LOGE(TAG, "failed to create next_id key for parent_id '%u'", parent_id);
     ret = ESP_ERR_NO_MEM;
     goto exit;
   }
@@ -291,8 +335,13 @@ esp_err_t dmxbox_storage_create_blob(
       "failed to save next_id"
   );
 
-  if (snprintf(key, sizeof(key), "%s:%u", prefix, *id) >= sizeof(key)) {
-    ESP_LOGE(TAG, "failed to create key for prefix '%s', id %u", prefix, *id);
+  if (!make_blob_key(key, sizeof(key), parent_id, *id)) {
+    ESP_LOGE(
+        TAG,
+        "failed to create key for parent_id %u, id %u",
+        parent_id,
+        *id
+    );
     ret = ESP_ERR_NO_MEM;
     goto exit;
   }
@@ -308,6 +357,49 @@ esp_err_t dmxbox_storage_create_blob(
   ESP_GOTO_ON_ERROR(nvs_commit(storage), exit, TAG, "failed to commit");
 
 exit:
+  nvs_close(storage);
+  return ret;
+}
+
+esp_err_t dmxbox_storage_set_blob(
+    const char *ns,
+    uint16_t parent_id,
+    uint16_t id,
+    size_t size,
+    const void *value
+) {
+  esp_err_t ret = ESP_OK;
+
+  nvs_handle_t storage;
+  ESP_RETURN_ON_ERROR(
+      nvs_open(ns, NVS_READWRITE, &storage),
+      TAG,
+      "failed to open NVS"
+  );
+
+  char key[NVS_KEY_NAME_MAX_SIZE];
+  if (!make_blob_key(key, sizeof(key), parent_id, id)) {
+    ESP_LOGE(TAG, "failed to make key for parent_id %u, id %u", parent_id, id);
+    ret = ESP_ERR_NO_MEM;
+    goto close_storage;
+  }
+
+  ESP_GOTO_ON_ERROR(
+      nvs_set_blob(storage, key, value, size),
+      close_storage,
+      TAG,
+      "failed to write blob '%s'",
+      key
+  );
+
+  ESP_GOTO_ON_ERROR(
+      nvs_commit(storage),
+      close_storage,
+      TAG,
+      "failed to commit NVS"
+  );
+
+close_storage:
   nvs_close(storage);
   return ret;
 }
