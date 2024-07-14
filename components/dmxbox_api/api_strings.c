@@ -49,3 +49,36 @@ cJSON *dmxbox_mac_to_json(const uint8_t mac[6]) {
   }
   return NULL;
 }
+
+cJSON *dmxbox_api_channel_to_json(const dmxbox_channel_t *c) {
+  char buffer[sizeof("127-16-16/512")];
+  size_t size = c->universe.address
+                    ? snprintf(
+                          buffer,
+                          sizeof(buffer),
+                          "%u-%u-%u/%u",
+                          c->universe.net,
+                          c->universe.subnet,
+                          c->universe.universe,
+                          c->index
+                      )
+                    : snprintf(buffer, sizeof(buffer), "%u", c->index);
+  return size < sizeof(buffer) ? cJSON_CreateString(buffer) : NULL;
+}
+
+bool dmxbox_api_channel_from_json(const cJSON *json, dmxbox_channel_t *c) {
+  if (!cJSON_IsString(json)) {
+    ESP_LOGE(TAG, "channel is not a string");
+    return false;
+  }
+
+  // TODO non-zero universes
+  int value = atoi(json->valuestring);
+  if (value < 1 || value > 512) {
+    ESP_LOGE(TAG, "channel out of range: %d", value);
+    return false;
+  }
+
+  c->index = value;
+  return true;
+}

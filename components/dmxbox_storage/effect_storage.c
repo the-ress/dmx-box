@@ -1,12 +1,14 @@
 #include "effect_storage.h"
+#include "esp_err.h"
 #include "private.h"
 #include <esp_check.h>
 #include <nvs.h>
 
 static const char effect_ns[] = "dmxbox/effect";
 static const char TAG[] = "dmxbox_storage_effect";
+static const char NEXT_ID[] = "next_id";
 
-static esp_err_t step_key(uint16_t effect_id, char key[NVS_KEY_NAME_MAX_SIZE]) {
+static esp_err_t make_key(uint16_t effect_id, char key[NVS_KEY_NAME_MAX_SIZE]) {
   if (snprintf(key, NVS_KEY_NAME_MAX_SIZE, "%x", effect_id) >=
       NVS_KEY_NAME_MAX_SIZE) {
     ESP_LOGE(TAG, "key buffer too small");
@@ -18,7 +20,7 @@ static esp_err_t step_key(uint16_t effect_id, char key[NVS_KEY_NAME_MAX_SIZE]) {
 esp_err_t dmxbox_effect_get(uint16_t effect_id, dmxbox_effect_t **result) {
   char key[NVS_KEY_NAME_MAX_SIZE];
   ESP_RETURN_ON_ERROR(
-      step_key(effect_id, key),
+      make_key(effect_id, key),
       TAG,
       "failed to get key for effect %u",
       effect_id
@@ -41,3 +43,53 @@ esp_err_t dmxbox_effect_get(uint16_t effect_id, dmxbox_effect_t **result) {
   return ESP_OK;
 }
 
+esp_err_t dmxbox_effect_create(const dmxbox_effect_t *effect, uint16_t *id) {
+  if (!id) {
+    return ESP_ERR_INVALID_ARG;
+  }
+
+  nvs_handle_t storage;
+  ESP_RETURN_ON_ERROR(
+      nvs_open(effect_ns, NVS_READWRITE, &storage),
+      TAG,
+      "failed to open %s",
+      effect_ns
+  );
+
+  esp_err_t ret = nvs_get_u16(storage, NEXT_ID, id);
+  switch (ret) {
+  case ESP_OK:
+    ESP_LOGI(TAG, "next_id = %u", *id);
+    break;
+  case ESP_ERR_NVS_NOT_FOUND:
+    ESP_LOGI(TAG, "no next_id, starting from 1");
+    ret = ESP_OK;
+    *id = 1;
+    break;
+  default:
+    goto exit;
+  }
+
+  ESP_GOTO_ON_ERROR(
+      nvs_set_u16(storage, NEXT_ID, *id + 1),
+      exit,
+      TAG,
+      "failed to save next_id"
+  );
+
+  char key[NVS_KEY_NAME_MAX_SIZE];
+  ESP_GOTO_ON_ERROR(make_key(*id, key), exit, TAG, "failed to make key");
+
+  ESP_GOTO_ON_ERROR(
+      nvs_set_blob(storage, key, effect, sizeof(*effect)),
+      exit,
+      TAG,
+      "failed to save effect"
+  );
+
+  ESP_GOTO_ON_ERROR(nvs_commit(storage), exit, TAG, "failed to commit");
+
+exit:
+  nvs_close(storage);
+  return ret;
+}

@@ -85,8 +85,7 @@ static esp_err_t dmxbox_api_effects_handler(httpd_req_t *req) {
   }
 
   if (!uri.effect_id) {
-    // effect list
-    return dmxbox_httpd_send_jsonstr(req, "[]");
+    return dmxbox_api_effect_container_endpoint(req);
   } else if (uri.step_container) {
     // step list
     return dmxbox_httpd_send_jsonstr(req, "[]");
@@ -108,6 +107,12 @@ esp_err_t dmxbox_api_effects_register(httpd_handle_t server) {
       httpd_register_uri_handler(server, &endpoint),
       TAG,
       "failed to register GET endpoint"
+  );
+  endpoint.method = HTTP_POST;
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &endpoint),
+      TAG,
+      "failed to register POST endpoint"
   );
   endpoint.method = HTTP_PUT;
   ESP_RETURN_ON_ERROR(

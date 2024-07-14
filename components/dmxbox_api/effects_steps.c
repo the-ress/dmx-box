@@ -1,3 +1,4 @@
+#include "api_strings.h"
 #include "cJSON.h"
 #include "dmxbox_httpd.h"
 #include "dmxbox_storage.h"
@@ -9,40 +10,6 @@
 #include <stdint.h>
 
 static const char TAG[] = "dmxbox_api_effect_step";
-
-static cJSON *dmxbox_api_channel_to_json(const dmxbox_channel_t *c) {
-  char buffer[sizeof("127-16-16/512")];
-  size_t size = c->universe.address
-                    ? snprintf(
-                          buffer,
-                          sizeof(buffer),
-                          "%u-%u-%u/%u",
-                          c->universe.net,
-                          c->universe.subnet,
-                          c->universe.universe,
-                          c->index
-                      )
-                    : snprintf(buffer, sizeof(buffer), "%u", c->index);
-  return size < sizeof(buffer) ? cJSON_CreateString(buffer) : NULL;
-}
-
-static bool
-dmxbox_api_channel_from_json(const cJSON *json, dmxbox_channel_t *c) {
-  if (!cJSON_IsString(json)) {
-    ESP_LOGE(TAG, "channel is not a string");
-    return false;
-  }
-
-  // TODO non-zero universes
-  int value = atoi(json->valuestring);
-  if (value < 1 || value > 512) {
-    ESP_LOGE(TAG, "channel out of range: %d", value);
-    return false;
-  }
-
-  c->index = value;
-  return true;
-}
 
 BEGIN_DMXBOX_API_SERIALIZER(dmxbox_storage_channel_level_t, channel_level)
 DMXBOX_API_SERIALIZE_ITEM(
@@ -76,8 +43,7 @@ esp_err_t dmxbox_api_effect_step_get(
   ESP_LOGI(TAG, "GET effect=%u step=%u", effect_id, step_id);
 
   dmxbox_effect_step_t *effect_step = NULL;
-  esp_err_t ret =
-      dmxbox_effect_step_get(effect_id, step_id, &effect_step);
+  esp_err_t ret = dmxbox_effect_step_get(effect_id, step_id, &effect_step);
   switch (ret) {
   case ESP_OK:
     break;
@@ -134,8 +100,7 @@ esp_err_t dmxbox_api_effect_step_put(
       "failed to receive json"
   );
 
-  dmxbox_effect_step_t *parsed =
-      dmxbox_effect_step_from_json_alloc(json);
+  dmxbox_effect_step_t *parsed = dmxbox_effect_step_from_json_alloc(json);
   cJSON_free(json);
 
   if (!parsed) {

@@ -41,6 +41,14 @@ bool dmxbox_deserialize_object(
     void *object
 );
 
+cJSON *dmxbox_u8_to_json(uint8_t value);
+cJSON *dmxbox_u16_to_json(uint16_t value);
+cJSON *dmxbox_u32_to_json(uint32_t value);
+
+bool dmxbox_u8_from_json(const cJSON *json, uint8_t *value);
+bool dmxbox_u16_from_json(const cJSON *json, uint16_t *value);
+bool dmxbox_u32_from_json(const cJSON *json, uint32_t *value);
+
 //
 // The following de/serializers are not meant to be invoked directly. They are
 // called by dmxbox_serialize_object and dmxbox_deserialize_object.

@@ -79,63 +79,62 @@ get_item(const dmxbox_serializer_entry_t *entry, const cJSON *json) {
   return item;
 }
 
-static const cJSON *get_number(
-    const dmxbox_serializer_entry_t *entry,
-    const cJSON *json,
-    double min,
-    double max,
-    const char *type
-) {
-  const cJSON *item = get_item(entry, json);
-  if (!item) {
-    return false;
-  }
+static const cJSON *
+validate_number(const cJSON *item, double min, double max, const char *type) {
   if (!cJSON_IsNumber(item)) {
-    DESERIALIZE_LOGE(entry, "not a number");
+    ESP_LOGE(TAG, "not a number");
     return NULL;
   }
   if (item->valuedouble < min) {
-    DESERIALIZE_LOGE(entry, "too small for %s", type);
+    ESP_LOGE(TAG, "too small for %s", type);
     return NULL;
   }
   if (item->valuedouble > max) {
-    DESERIALIZE_LOGE(entry, "too large for %s", type);
+    ESP_LOGE(TAG, "too large for %s", type);
     return NULL;
   }
   return item;
 }
 
-static bool get_double(
-    const dmxbox_serializer_entry_t *entry,
-    const cJSON *json,
-    double min,
-    double max,
-    const char *type,
-    double *valuedouble
-) {
-  const cJSON *item = get_number(entry, json, min, max, type);
-  if (item) {
-    *valuedouble = item->valuedouble;
+static const cJSON *validate_u8(const cJSON *item) {
+  return validate_number(item, 0, UINT8_MAX, "u8");
+}
+
+static const cJSON *validate_u16(const cJSON *item) {
+  return validate_number(item, 0, UINT16_MAX, "u16");
+}
+
+static const cJSON *validate_u32(const cJSON *item) {
+  return validate_number(item, 0, UINT32_MAX, "u32");
+}
+
+bool dmxbox_u8_from_json(const cJSON *json, uint8_t *value) {
+  if (validate_u8(json)) {
+    *value = (uint8_t)json->valueint;
     return true;
   }
   return false;
 }
 
-static bool get_int32(
-    const dmxbox_serializer_entry_t *entry,
-    const cJSON *json,
-    double min,
-    double max,
-    const char *type,
-    int32_t *valueint
-) {
-  const cJSON *item = get_number(entry, json, min, max, type);
-  if (item) {
-    *valueint = item->valueint;
+bool dmxbox_u16_from_json(const cJSON *json, uint16_t *value) {
+  if (validate_u16(json)) {
+    *value = (uint16_t)json->valueint;
     return true;
   }
   return false;
 }
+
+bool dmxbox_u32_from_json(const cJSON *json, uint32_t *value) {
+  if (validate_u32(json)) {
+    *value = (uint32_t)json->valuedouble;
+    return true;
+  }
+  return false;
+}
+
+cJSON *dmxbox_u8_to_json(uint8_t value) { return cJSON_CreateNumber(value); }
+cJSON *dmxbox_u16_to_json(uint16_t value) { return cJSON_CreateNumber(value); }
+cJSON *dmxbox_u32_to_json(uint32_t value) { return cJSON_CreateNumber(value); }
 
 cJSON *dmxbox_serialize_u8(
     const dmxbox_serializer_entry_t *entry,
@@ -143,22 +142,7 @@ cJSON *dmxbox_serialize_u8(
 ) {
   const uint8_t *ptr = (uint8_t *)at_offset(object, entry->offset);
   SERIALIZE_LOGI(entry, "(u8) %" PRIu8, *ptr);
-  return cJSON_CreateNumber(*ptr);
-}
-
-bool dmxbox_deserialize_u8(
-    const dmxbox_serializer_entry_t *entry,
-    const cJSON *json,
-    void *object
-) {
-  int32_t intvalue;
-  if (!get_int32(entry, json, 0, UINT8_MAX, "u8", &intvalue)) {
-    return false;
-  }
-  DESERIALIZE_LOGI(entry, "(u8) %" PRId32, intvalue);
-  uint8_t *ptr = (uint8_t *)at_offset(object, entry->offset);
-  *ptr = (uint8_t)intvalue;
-  return true;
+  return dmxbox_u8_to_json(*ptr);
 }
 
 cJSON *dmxbox_serialize_u16(
@@ -170,21 +154,6 @@ cJSON *dmxbox_serialize_u16(
   return cJSON_CreateNumber(*ptr);
 }
 
-bool dmxbox_deserialize_u16(
-    const dmxbox_serializer_entry_t *entry,
-    const cJSON *json,
-    void *object
-) {
-  int32_t intvalue;
-  if (!get_int32(entry, json, 0, UINT16_MAX, "u16", &intvalue)) {
-    return false;
-  }
-  DESERIALIZE_LOGI(entry, "(u16) %" PRId32, intvalue);
-  uint16_t *ptr = (uint16_t *)at_offset(object, entry->offset);
-  *ptr = (uint16_t)intvalue;
-  return true;
-}
-
 cJSON *dmxbox_serialize_u32(
     const dmxbox_serializer_entry_t *entry,
     const void *object
@@ -194,20 +163,46 @@ cJSON *dmxbox_serialize_u32(
   return cJSON_CreateNumber(*ptr);
 }
 
+bool dmxbox_deserialize_u8(
+    const dmxbox_serializer_entry_t *entry,
+    const cJSON *json,
+    void *object
+) {
+  const cJSON *item = get_item(entry, json);
+  if (!item) {
+    return false;
+  }
+  DESERIALIZE_LOGI(entry, "(u8)");
+  uint8_t *ptr = (uint8_t *)at_offset(object, entry->offset);
+  return dmxbox_u8_from_json(item, ptr);
+}
+
+bool dmxbox_deserialize_u16(
+    const dmxbox_serializer_entry_t *entry,
+    const cJSON *json,
+    void *object
+) {
+  const cJSON *item = get_item(entry, json);
+  if (!item) {
+    return false;
+  }
+  DESERIALIZE_LOGI(entry, "(u16)");
+  uint16_t *ptr = (uint16_t *)at_offset(object, entry->offset);
+  return dmxbox_u16_from_json(item, ptr);
+}
+
 bool dmxbox_deserialize_u32(
     const dmxbox_serializer_entry_t *entry,
     const cJSON *json,
     void *object
 ) {
-  double valuedouble;
-  if (!get_double(entry, json, 0, UINT32_MAX, "u32", &valuedouble)) {
+  const cJSON *item = get_item(entry, json);
+  if (!item) {
     return false;
   }
-  uint32_t uintvalue = (uint32_t)valuedouble;
-  DESERIALIZE_LOGI(entry, "(u32) %" PRIu32, uintvalue);
+  DESERIALIZE_LOGI(entry, "(u32)");
   uint32_t *ptr = (uint32_t *)at_offset(object, entry->offset);
-  *ptr = uintvalue;
-  return true;
+  return dmxbox_u32_from_json(item, ptr);
 }
 
 cJSON *dmxbox_serialize_item(
