@@ -166,6 +166,13 @@ dmxbox_rest_send(httpd_req_t *req, dmxbox_rest_result_t result) {
         TAG,
         "failed to send json response"
     );
+  } else {
+    ESP_GOTO_ON_ERROR(
+        httpd_resp_send(req, NULL, 0),
+        exit,
+        TAG,
+        "failed to send empty response"
+    );
   }
 
 exit:
