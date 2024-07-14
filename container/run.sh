@@ -6,6 +6,7 @@ command -v podman >/dev/null && DOCKER=podman
 : "${CONTAINER:=dmxbox}"
 : "${DEVICE:=/dev/ttyUSB0}"
 : "${MOUNTPOINT:=/home/ubuntu/project}"
+: "${COMMAND:=nvim "${MOUNTPOINT}"}"
 
 CDPATH= cd -- "$(dirname -- "$0")"/..
 
@@ -29,4 +30,4 @@ $DOCKER container exec \
   --tty \
   --workdir "${MOUNTPOINT}" \
   $CONTAINER \
-  /bin/zsh -c '. /opt/esp/idf/export.sh && SHELL=/bin/zsh exec /bin/zsh'
+  /bin/zsh -c ". /opt/esp/idf/export.sh && SHELL=/bin/zsh exec ${COMMAND}"
