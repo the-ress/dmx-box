@@ -13,16 +13,20 @@
 
 static const char TAG[] = "dmxbox_api_effect";
 
-static esp_err_t dmxbox_api_effect_parse_uri(
-    httpd_req_t *req,
-    uint16_t *effect_id,
-    uint16_t *step_id
-) {
-  if (!effect_id || !step_id) {
+typedef struct effect_uri {
+  uint16_t effect_id;
+  uint16_t step_id;
+  bool step_container;
+} effect_uri_t;
+
+static esp_err_t
+dmxbox_api_effect_parse_uri(httpd_req_t *req, effect_uri_t *result) {
+  if (!result) {
     return ESP_ERR_INVALID_ARG;
   }
-  *effect_id = 0;
-  *step_id = 0;
+  result->effect_id = 0;
+  result->step_id = 0;
+  result->step_container = false;
 
   const char *uri = req->uri;
   uri = dmxbox_uri_match_component("api", uri);
@@ -36,13 +40,13 @@ static esp_err_t dmxbox_api_effect_parse_uri(
     return ESP_OK;
   }
 
-  uri = dmxbox_uri_match_positive_u16(effect_id, uri);
+  uri = dmxbox_uri_match_positive_u16(&result->effect_id, uri);
   if (!uri) {
     ESP_LOGW(TAG, "uri effect id not positive u16");
     return ESP_ERR_NOT_FOUND;
   }
   if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri effect id %u", *effect_id);
+    ESP_LOGI(TAG, "uri effect id %u", result->effect_id);
     return ESP_OK;
   }
 
@@ -54,16 +58,17 @@ static esp_err_t dmxbox_api_effect_parse_uri(
 
   if (*uri == '\0') {
     ESP_LOGI(TAG, "uri step container");
+    result->step_container = true;
     return ESP_OK;
   }
 
-  uri = dmxbox_uri_match_positive_u16(step_id, uri);
+  uri = dmxbox_uri_match_positive_u16(&result->step_id, uri);
   if (!uri) {
     ESP_LOGW(TAG, "uri step id not positive u16");
     return ESP_ERR_NOT_FOUND;
   }
   if (*uri == '\0') {
-    ESP_LOGI(TAG, "uri step id %u", *step_id);
+    ESP_LOGI(TAG, "uri step id %u", result->step_id);
     return ESP_OK;
   }
 
@@ -74,10 +79,8 @@ static esp_err_t dmxbox_api_effect_parse_uri(
 esp_err_t dmxbox_api_effects_endpoint(httpd_req_t *req) {
   ESP_LOGI(TAG, "got '%s'", req->uri);
 
-  uint16_t effect_id = 0;
-  uint16_t step_id = 0;
-
-  esp_err_t ret = dmxbox_api_effect_parse_uri(req, &effect_id, &step_id);
+  effect_uri_t uri;
+  esp_err_t ret = dmxbox_api_effect_parse_uri(req, &uri);
   switch (ret) {
   case ESP_OK:
     break;
@@ -87,14 +90,17 @@ esp_err_t dmxbox_api_effects_endpoint(httpd_req_t *req) {
     return ret;
   }
 
-  if (!effect_id) {
+  if (!uri.effect_id) {
     // effect list
     return dmxbox_httpd_send_jsonstr(req, "[]");
-  } else if (!step_id) {
+  } else if (uri.step_container) {
     // step list
     return dmxbox_httpd_send_jsonstr(req, "[]");
+  } else if (!uri.step_id) {
+    // effect
+    return dmxbox_httpd_send_jsonstr(req, "{\"type\": \"effect\"}");
   } else {
-    return dmxbox_api_effect_step_endpoint(req, effect_id, step_id);
+    return dmxbox_api_effect_step_endpoint(req, uri.effect_id, uri.step_id);
   }
 }
 
