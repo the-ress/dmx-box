@@ -11,6 +11,7 @@
 #include "dmxbox_dmx_send.h"
 #include "dmxbox_dns.h"
 #include "dmxbox_effects.h"
+#include "dmxbox_espnow.h"
 #include "dmxbox_httpd.h"
 #include "dmxbox_led.h"
 #include "dmxbox_recalc.h"
@@ -76,6 +77,8 @@ void app_main() {
   dmxbox_artnet_init();
 
   dmxbox_effects_init();
+
+  dmxbox_espnow_init();
 
   ESP_ERROR_CHECK(init_fs());
   ESP_ERROR_CHECK(dmxbox_webserver_start());

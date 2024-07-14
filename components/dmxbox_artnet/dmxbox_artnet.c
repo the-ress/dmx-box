@@ -298,7 +298,7 @@ static void send_poll_reply_packet(
     reply.porttypes[i] = PORT_TYPE_OUTPUT;
   }
 
-  ESP_LOGI(
+  ESP_LOGD(
       TAG,
       "Sending poll reply for universes %d-%d-x (%d universes)",
       reply.subH,

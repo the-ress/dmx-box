@@ -4,5 +4,6 @@ idf_component_register(
   REQUIRES
     dmxbox_artnet
     dmxbox_const
+    dmxbox_espnow
     dmxbox_storage
 )

@@ -10,6 +10,7 @@ idf_component_register(
       dmxbox_dmx
       dmxbox_dns
       dmxbox_effects
+      dmxbox_espnow
       dmxbox_httpd
       dmxbox_led
       dmxbox_recalc
