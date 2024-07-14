@@ -51,3 +51,11 @@ esp_err_t dmxbox_storage_list_blobs(
     uint16_t *count,
     dmxbox_storage_entry_t *page
 );
+
+esp_err_t dmxbox_storage_create_blob(
+    const char *ns,
+    const char *prefix,
+    const void *data,
+    size_t size,
+    uint16_t *id
+);

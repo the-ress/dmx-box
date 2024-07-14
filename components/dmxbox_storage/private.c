@@ -3,6 +3,8 @@
 #include <esp_err.h>
 #include <nvs.h>
 #include <nvs_flash.h>
+#include <stdio.h>
+#include <string.h>
 
 // TODO change to dmxbox
 #define DMXBOX_NVS_NS "storage"
@@ -234,6 +236,78 @@ exit:
   if (iterator) {
     nvs_release_iterator(iterator);
   }
+  nvs_close(storage);
+  return ret;
+}
+
+esp_err_t dmxbox_storage_create_blob(
+    const char *ns,
+    const char *prefix,
+    const void *data,
+    size_t size,
+    uint16_t *id
+) {
+  if (!ns || !id) {
+    return ESP_ERR_INVALID_ARG;
+  }
+  if (!prefix) {
+    prefix = "";
+  }
+
+  esp_err_t ret = ESP_OK;
+  nvs_handle_t storage;
+  ESP_RETURN_ON_ERROR(
+      nvs_open(ns, NVS_READWRITE, &storage),
+      TAG,
+      "failed to open %s",
+      ns
+  );
+
+  char key[NVS_KEY_NAME_MAX_SIZE];
+  if (snprintf(key, sizeof(key), "%s:next_id", prefix) >= sizeof(key)) {
+    ESP_LOGE(TAG, "failed to create next_id key for prefix '%s'", prefix);
+    ret = ESP_ERR_NO_MEM;
+    goto exit;
+  }
+
+  ret = nvs_get_u16(storage, key, id);
+  switch (ret) {
+  case ESP_OK:
+    ESP_LOGI(TAG, "%s = %u", key, *id);
+    break;
+  case ESP_ERR_NVS_NOT_FOUND:
+    ESP_LOGI(TAG, "no next_id, starting from 1");
+    ret = ESP_OK;
+    *id = 1;
+    break;
+  default:
+    goto exit;
+  }
+
+  ESP_GOTO_ON_ERROR(
+      nvs_set_u16(storage, key, *id + 1),
+      exit,
+      TAG,
+      "failed to save next_id"
+  );
+
+  if (snprintf(key, sizeof(key), "%s:%u", prefix, *id) >= sizeof(key)) {
+    ESP_LOGE(TAG, "failed to create key for prefix '%s', id %u", prefix, *id);
+    ret = ESP_ERR_NO_MEM;
+    goto exit;
+  }
+
+  ESP_GOTO_ON_ERROR(
+      nvs_set_blob(storage, key, data, size),
+      exit,
+      TAG,
+      "failed to save %u-byte blob",
+      size
+  );
+
+  ESP_GOTO_ON_ERROR(nvs_commit(storage), exit, TAG, "failed to commit");
+
+exit:
   nvs_close(storage);
   return ret;
 }
