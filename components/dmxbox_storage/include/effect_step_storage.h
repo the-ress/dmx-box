@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 typedef struct dmxbox_channel {
-  dmxbox_storage_universe_t universe;
+  dmxbox_universe_t universe;
   unsigned index : 9;
 } dmxbox_channel_t;
 
