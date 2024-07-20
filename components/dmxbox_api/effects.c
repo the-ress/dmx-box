@@ -27,6 +27,7 @@ DMXBOX_API_SERIALIZE_ITEM(
     dmxbox_api_channel_to_json,
     dmxbox_api_channel_from_json
 )
+DMXBOX_API_SERIALIZE_U16(dmxbox_effect_t, distributed_id)
 DMXBOX_API_SERIALIZE_TRAILING_ARRAY(
     dmxbox_effect_t,
     steps,

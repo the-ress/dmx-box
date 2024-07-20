@@ -82,6 +82,7 @@ typedef struct effect {
   uint16_t level_channel;
   uint16_t rate_channel;
   bool distributed;
+  bool distributed_id;
 
   step_t *steps_head;
 
@@ -206,6 +207,7 @@ void create_sample_effect_if_needed() {
   snprintf(effect1->name, sizeof(effect1->name), "%s", "test effect");
   effect1->level_channel.index = 1;
   effect1->rate_channel.index = 2;
+  effect1->distributed_id = 1;
   effect1->steps[0] = 1;
   effect1->steps[1] = 2;
   effect1->steps[2] = 3;
@@ -324,7 +326,8 @@ effect_t *load_effect(uint16_t effect_id, dmxbox_effect_t *effect_data) {
   effect->id = effect_id;
   effect->level_channel = effect_data->level_channel.index;
   effect->rate_channel = effect_data->rate_channel.index;
-  effect->distributed = true;
+  effect->distributed = effect_data->distributed_id != 0;
+  effect->distributed_id = effect_data->distributed_id;
 
   step_t *steps_tail = NULL;
   for (int i = 0; i < effect_data->step_count; i++) {
@@ -559,7 +562,7 @@ static void handle_distributed_leader(
 
   if (should_send_sync(state, level, rate_raw, current_time_us)) {
     dmxbox_espnow_send_effect_state(
-        effect->id,
+        effect->distributed_id,
         level,
         rate_raw,
         effect->progress,
@@ -592,7 +595,11 @@ static void handle_distributed_effect(
 
   if (*level != 0) {
     if (!state->is_leader) {
-      ESP_LOGI(TAG, "Switching to leader role for effect %d", effect->id);
+      ESP_LOGI(
+          TAG,
+          "Switching to leader role for effect %d",
+          effect->distributed_id
+      );
     }
     state->is_leader = true;
   }
@@ -651,9 +658,9 @@ static void get_control_data(uint8_t control_data[512]) {
   taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
 }
 
-static effect_t *find_effect(uint16_t id) {
+static effect_t *find_effect_by_distributed_id(uint16_t distributed_id) {
   for (effect_t *effect = effects_head; effect; effect = effect->next) {
-    if (effect->id == id) {
+    if (effect->distributed_id == distributed_id) {
       return effect;
     }
   }
@@ -664,7 +671,7 @@ static effect_t *find_effect(uint16_t id) {
 void handle_sync_queue(int64_t current_time_us, int64_t time_increment_us) {
   effect_state_sync_event_t event;
   while (xQueueReceive(effect_state_sync_queue, &event, 0) == pdTRUE) {
-    effect_t *effect = find_effect(event.effect_id);
+    effect_t *effect = find_effect_by_distributed_id(event.effect_id);
 
     if (!effect->distributed) {
       ESP_LOGW(

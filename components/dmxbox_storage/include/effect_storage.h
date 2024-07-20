@@ -8,6 +8,7 @@ typedef struct dmxbox_effect {
   char name[33];
   dmxbox_channel_t level_channel;
   dmxbox_channel_t rate_channel;
+  uint16_t distributed_id;
   size_t step_count;
   uint16_t steps[1];
 } __attribute__((packed)) dmxbox_effect_t;
