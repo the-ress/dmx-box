@@ -31,7 +31,7 @@ DMXBOX_API_SERIALIZE_TRAILING_ARRAY(
     dmxbox_effect_t,
     steps,
     step_count,
-    dmxbox_u16_to_json,
+    dmxbox_u16_ptr_to_json,
     dmxbox_u16_from_json
 )
 END_DMXBOX_API_SERIALIZER(dmxbox_effect_t, effect)

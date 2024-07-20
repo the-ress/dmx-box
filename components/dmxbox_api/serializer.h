@@ -43,6 +43,7 @@ bool dmxbox_deserialize_object(
 
 cJSON *dmxbox_u8_to_json(uint8_t value);
 cJSON *dmxbox_u16_to_json(uint16_t value);
+cJSON *dmxbox_u16_ptr_to_json(uint16_t *value);
 cJSON *dmxbox_u32_to_json(uint32_t value);
 
 bool dmxbox_u8_from_json(const cJSON *json, uint8_t *value);

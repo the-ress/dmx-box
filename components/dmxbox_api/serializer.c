@@ -134,6 +134,9 @@ bool dmxbox_u32_from_json(const cJSON *json, uint32_t *value) {
 
 cJSON *dmxbox_u8_to_json(uint8_t value) { return cJSON_CreateNumber(value); }
 cJSON *dmxbox_u16_to_json(uint16_t value) { return cJSON_CreateNumber(value); }
+cJSON *dmxbox_u16_ptr_to_json(uint16_t *value) {
+  return cJSON_CreateNumber(*value);
+}
 cJSON *dmxbox_u32_to_json(uint32_t value) { return cJSON_CreateNumber(value); }
 
 cJSON *dmxbox_serialize_u8(
