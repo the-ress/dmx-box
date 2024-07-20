@@ -99,9 +99,86 @@ dmxbox_rest_result_t dmxbox_api_effect_step_put(
   return dmxbox_rest_500_internal_server_error;
 }
 
+static dmxbox_rest_result_t dmxbox_api_effect_step_delete(
+    httpd_req_t *req,
+    uint16_t effect_id,
+    uint16_t step_id
+) {
+  ESP_LOGI(TAG, "DELETE effect=%u step=%u", effect_id, step_id);
+
+  esp_err_t ret = dmxbox_effect_step_delete(effect_id, step_id);
+  switch (ret) {
+  case ESP_OK:
+    return dmxbox_rest_200_ok;
+  case ESP_ERR_NOT_FOUND:
+    return dmxbox_rest_404_not_found;
+  default:
+    return dmxbox_rest_500_internal_server_error;
+  }
+}
+
+static dmxbox_rest_result_t
+dmxbox_api_effect_step_list(httpd_req_t *req, uint16_t effect_id) {
+  ESP_LOGI(TAG, "GET effect=%u steps", effect_id);
+
+  dmxbox_rest_result_t result = dmxbox_rest_500_internal_server_error;
+
+  cJSON *array = cJSON_CreateArray();
+  if (!array) {
+    ESP_LOGE(TAG, "failed to allocate array");
+    return result;
+  }
+
+  dmxbox_storage_entry_t steps[30];
+  uint16_t count = sizeof(steps) / sizeof(steps[0]);
+  if (dmxbox_effect_step_list(effect_id, 0, &count, steps) != ESP_OK) {
+    ESP_LOGE(TAG, "failed to list steps");
+    cJSON_free(array);
+    return result;
+  }
+
+  for (size_t i = 0; i < count; i++) {
+    cJSON *json = dmxbox_effect_step_to_json(steps[i].data);
+    if (!json) {
+      ESP_LOGE(
+          TAG,
+          "failed to serialize effect %u step %u",
+          effect_id,
+          steps[i].id
+      );
+      goto exit;
+    }
+    if (!cJSON_AddNumberToObject(json, "id", steps[i].id)) {
+      ESP_LOGE(TAG, "failed to add id for %u", steps[i].id);
+      cJSON_free(json);
+      goto exit;
+    }
+    if (!cJSON_AddItemToArray(array, json)) {
+      ESP_LOGE(
+          TAG,
+          "failed to add effect %u step %u to array",
+          effect_id,
+          steps[i].id
+      );
+      cJSON_free(json);
+      goto exit;
+    }
+  }
+
+  result = dmxbox_rest_result_json(array);
+
+exit:
+  while (count--) {
+    free(steps[count].data);
+  }
+  return result;
+}
+
 const dmxbox_rest_container_t effects_steps_router = {
     .slug = "steps",
     .get = dmxbox_api_effect_step_get,
     .post = NULL,
     .put = dmxbox_api_effect_step_put,
+    .delete = dmxbox_api_effect_step_delete,
+    .list = dmxbox_api_effect_step_list,
 };

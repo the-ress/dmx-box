@@ -32,6 +32,7 @@ esp_err_t dmxbox_effect_step_get(
 );
 
 esp_err_t dmxbox_effect_step_list(
+    uint16_t effect_id,
     uint16_t skip,
     uint16_t *count,
     dmxbox_storage_entry_t *page
@@ -42,3 +43,5 @@ esp_err_t dmxbox_effect_step_set(
     uint16_t step_id,
     const dmxbox_effect_step_t *value
 );
+
+esp_err_t dmxbox_effect_step_delete(uint16_t effect_id, uint16_t step_id);

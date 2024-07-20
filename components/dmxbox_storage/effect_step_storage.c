@@ -80,3 +80,29 @@ esp_err_t dmxbox_effect_step_set(
       value
   );
 }
+
+esp_err_t dmxbox_effect_step_delete(uint16_t effect_id, uint16_t step_id) {
+  ESP_RETURN_ON_ERROR(
+      dmxbox_storage_delete_blob(effect_step_ns, effect_id, step_id),
+      TAG,
+      "failed to delete the blob for effect id %u step %u",
+      effect_id,
+      step_id
+  );
+  return ESP_OK;
+}
+
+esp_err_t dmxbox_effect_step_list(
+    uint16_t effect_id,
+    uint16_t skip,
+    uint16_t *count,
+    dmxbox_storage_entry_t *page
+) {
+  return dmxbox_storage_list_blobs(
+      effect_step_ns,
+      effect_id,
+      skip,
+      count,
+      page
+  );
+}
