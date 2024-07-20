@@ -10,7 +10,7 @@ typedef struct dmxbox_effect {
   dmxbox_channel_t rate_channel;
   size_t step_count;
   uint16_t steps[1];
-} dmxbox_effect_t;
+} __attribute__((packed)) dmxbox_effect_t;
 
 dmxbox_effect_t *dmxbox_effect_alloc(size_t step_count);
 
