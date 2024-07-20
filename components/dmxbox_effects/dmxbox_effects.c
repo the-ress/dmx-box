@@ -33,7 +33,7 @@ static const uint32_t us_per_ms = 1000;
 
 static const uint8_t default_effect_rate_raw = 127;
 
-static uint16_t effect_control_universe_address = 1;
+static uint16_t effect_control_universe_address = 0;
 
 static const uint32_t distributed_sync_period_us = 10000 * us_per_ms;
 
@@ -442,6 +442,7 @@ void dmxbox_effects_init() {
 
   create_sample_effect_if_needed();
 
+  effect_control_universe_address = dmxbox_get_effect_control_universe();
   effects_head = load_effects_from_storage();
 
   effect_state_sync_queue =

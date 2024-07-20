@@ -71,6 +71,7 @@ void app_main() {
 
   if (!dmxbox_get_first_run_completed()) {
     wifi_set_defaults();
+    dmxbox_storage_set_defaults();
     dmxbox_set_first_run_completed(1);
   }
 

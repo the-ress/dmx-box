@@ -6,7 +6,9 @@ nvs_handle_t dmxbox_storage_open(nvs_open_mode_t open_mode);
 bool dmxbox_storage_check_error(const char *key, esp_err_t err);
 
 void dmxbox_storage_set_u8(const char *key, uint8_t value);
+void dmxbox_storage_set_u16(const char *key, uint16_t value);
 uint8_t dmxbox_storage_get_u8(nvs_handle_t storage, const char *key);
+uint16_t dmxbox_storage_get_u16(nvs_handle_t storage, const char *key);
 
 void dmxbox_storage_set_str(const char *key, const char *value);
 bool dmxbox_storage_get_str(

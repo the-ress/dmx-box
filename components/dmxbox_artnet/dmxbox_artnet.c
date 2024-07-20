@@ -120,14 +120,17 @@ static dmxbox_artnet_universe_advertisement_t *find_available_advertisement(
 }
 
 static void initialize_universes() {
+  dmxbox_artnet_native_universe_address = dmxbox_get_native_universe();
+  uint16_t effect_universe_address = dmxbox_get_effect_control_universe();
+
   dmxbox_artnet_universe_t *universe1 = dmxbox_artnet_universe_alloc();
-  universe1->address = 0;
+  universe1->address = dmxbox_artnet_native_universe_address;
 
-  dmxbox_artnet_universe_t *universe2 = dmxbox_artnet_universe_alloc();
-  universe2->address = 1;
-
-  universe1->next = universe2;
-
+  if (effect_universe_address != dmxbox_artnet_native_universe_address) {
+    dmxbox_artnet_universe_t *universe2 = dmxbox_artnet_universe_alloc();
+    universe2->address = effect_universe_address;
+    universe1->next = universe2;
+  }
   dmxbox_artnet_native_universe_address = universe1->address;
   universes_head = universe1;
   dmxbox_artnet_native_universe = universe1;

@@ -89,6 +89,14 @@ void dmxbox_storage_set_u8(const char *key, uint8_t value) {
   nvs_close(storage);
 }
 
+void dmxbox_storage_set_u16(const char *key, uint16_t value) {
+  ESP_LOGI(TAG, "Setting '%s' to %d", key, value);
+  nvs_handle_t storage = dmxbox_storage_open(NVS_READWRITE);
+  ESP_ERROR_CHECK(nvs_set_u16(storage, key, value));
+  ESP_ERROR_CHECK(nvs_commit(storage));
+  nvs_close(storage);
+}
+
 void dmxbox_storage_set_str(const char *key, const char *value) {
   ESP_LOGI(TAG, "Setting '%s' to '%s'", key, value);
   nvs_handle_t storage = dmxbox_storage_open(NVS_READWRITE);
@@ -101,6 +109,16 @@ uint8_t dmxbox_storage_get_u8(nvs_handle_t storage, const char *key) {
   ESP_LOGI(TAG, "Reading '%s' u8", key);
   uint8_t result;
   esp_err_t err = nvs_get_u8(storage, key, &result);
+  if (dmxbox_storage_check_error(key, err)) {
+    return result;
+  }
+  return 0;
+}
+
+uint16_t dmxbox_storage_get_u16(nvs_handle_t storage, const char *key) {
+  ESP_LOGI(TAG, "Reading '%s' u16", key);
+  uint16_t result;
+  esp_err_t err = nvs_get_u16(storage, key, &result);
   if (dmxbox_storage_check_error(key, err)) {
     return result;
   }

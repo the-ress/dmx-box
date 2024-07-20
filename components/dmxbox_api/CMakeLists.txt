@@ -5,6 +5,7 @@ idf_component_register(
     dmxbox_api.c
     effects.c
     effects_steps.c
+    settings_artnet.c
     settings_sta.c
     serializer.c
     ws.c
