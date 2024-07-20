@@ -1,11 +1,15 @@
-#include "esp_log.h"
-#include "private.h"
+#include <esp_log.h>
 #include <nvs_flash.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
+#include "dmxbox_const.h"
+#include "private.h"
+
 static const char *TAG = "storage";
+
+static const char artnet_snapshots_ns[] = "dmxbox/snaps";
 
 static const char *key_first_run_completed = "first_init";
 static const char *key_sta_mode_enabled = "sta_mode";
@@ -37,6 +41,49 @@ bool dmxbox_set_hostname(const char *value) {
   }
   dmxbox_storage_set_str(key_hostname, hostname_);
   return true;
+}
+
+bool dmxbox_get_artnet_snapshot(
+    uint16_t universe,
+    uint8_t data[DMX_CHANNEL_COUNT]
+) {
+  size_t size = DMX_CHANNEL_COUNT;
+  void *buffer;
+  esp_err_t err =
+      dmxbox_storage_get_blob(artnet_snapshots_ns, 0, universe, &size, &buffer);
+  if (err == ESP_ERR_NOT_FOUND) {
+    ESP_LOGI(TAG, "Stored snapshot for artnet universe %d not found", universe);
+    return false;
+  }
+  ESP_ERROR_CHECK(err);
+
+  if (size != DMX_CHANNEL_COUNT) {
+    ESP_LOGE(
+        TAG,
+        "Stored artnet universe %d snapshot size is incorrect: %d",
+        universe,
+        size
+    );
+    return false;
+  }
+
+  memcpy(data, buffer, DMX_CHANNEL_COUNT);
+
+  free(buffer);
+  return true;
+}
+
+void dmxbox_set_artnet_snapshot(
+    uint16_t universe,
+    const uint8_t data[DMX_CHANNEL_COUNT]
+) {
+  ESP_ERROR_CHECK(dmxbox_storage_set_blob(
+      artnet_snapshots_ns,
+      0,
+      universe,
+      DMX_CHANNEL_COUNT,
+      data
+  ));
 }
 
 void dmxbox_storage_init() {

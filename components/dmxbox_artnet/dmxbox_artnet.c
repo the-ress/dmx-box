@@ -26,6 +26,7 @@ static const char *TAG = "artnet";
 #define LONG_NAME "Art-Net -> DMX converter"
 #define LOG_DMX_DATA false
 static const uint32_t POLL_REPLY_INTERVAL = 10 * 1000;
+static const uint32_t AUTOSAVE_INTERVAL = 5 * 60 * 1000;
 
 typedef struct dmxbox_artnet_listener_context {
   char *name;
@@ -42,6 +43,7 @@ typedef struct dmxbox_artnet_universe {
   struct dmxbox_artnet_universe *next;
   uint16_t address;
   uint8_t data[DMX_CHANNEL_COUNT];
+  uint8_t last_snapshot[DMX_CHANNEL_COUNT];
 } dmxbox_artnet_universe_t;
 
 static dmxbox_artnet_universe_t *dmxbox_artnet_universe_alloc() {
@@ -168,6 +170,35 @@ static void initialize_universe_advertisements() {
   universe_advertisements_head = head;
 }
 
+static void load_stored_snapshots() {
+  for (dmxbox_artnet_universe_t *universe = universes_head; universe;
+       universe = universe->next) {
+
+    if (dmxbox_get_artnet_snapshot(universe->address, universe->data)) {
+      memcpy(universe->last_snapshot, universe->data, DMX_CHANNEL_COUNT);
+      ESP_LOGI(TAG, "Loaded snapshot for universe %d", universe->address);
+    }
+  }
+}
+
+static void store_universe_snapshot(dmxbox_artnet_universe_t *universe) {
+  uint8_t snapshot_data[DMX_CHANNEL_COUNT];
+  bool should_save = false;
+
+  taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
+  if (memcmp(universe->data, universe->last_snapshot, DMX_CHANNEL_COUNT) != 0) {
+    should_save = true;
+    memcpy(universe->last_snapshot, universe->data, DMX_CHANNEL_COUNT);
+    memcpy(snapshot_data, universe->data, DMX_CHANNEL_COUNT);
+  }
+  taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
+
+  if (should_save) {
+    dmxbox_set_artnet_snapshot(universe->address, universe->data);
+    ESP_LOGI(TAG, "Stored universe %d snapshot", universe->address);
+  }
+}
+
 void dmxbox_artnet_init() {
   ap_context.interface = wifi_get_ap_interface();
   sta_context.interface = wifi_get_sta_interface();
@@ -176,6 +207,8 @@ void dmxbox_artnet_init() {
 
   initialize_universes();
   initialize_universe_advertisements();
+
+  load_stored_snapshots();
 }
 
 int create_socket(esp_netif_t *interface, const char *context_name) {
@@ -554,12 +587,14 @@ static void handle_packet(
 }
 
 static void reset_artnet_state() {
-  taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
   for (dmxbox_artnet_universe_t *universe = universes_head; universe;
        universe = universe->next) {
+    taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
     memset(universe->data, 0, DMX_CHANNEL_COUNT);
+    taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
+
+    store_universe_snapshot(universe);
   }
-  taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
 
   dmxbox_artnet_client_tracking_reset();
 }
@@ -573,10 +608,7 @@ static void reset_button_loop(void *parameter) {
     if (xQueueReceive(button_events, &ev, 1000 / portTICK_PERIOD_MS)) {
       if ((ev.pin == dmxbox_button_reset) && (ev.event == BUTTON_DOWN)) {
         ESP_LOGI(TAG, "Reset button pressed");
-
-        taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
         reset_artnet_state();
-        taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
       }
     }
   }
@@ -603,6 +635,17 @@ void send_periodic_poll_reply_when_connected(void *parameter) {
     }
 
     vTaskDelay(POLL_REPLY_INTERVAL / portTICK_PERIOD_MS);
+  }
+}
+
+void autosave_universe_snapshots(void *parameter) {
+  while (1) {
+    vTaskDelay(AUTOSAVE_INTERVAL / portTICK_PERIOD_MS);
+
+    for (dmxbox_artnet_universe_t *universe = universes_head; universe;
+         universe = universe->next) {
+      store_universe_snapshot(universe);
+    }
   }
 }
 
@@ -697,6 +740,15 @@ void dmxbox_artnet_receive_task(void *parameter) {
   xTaskCreate(
       send_periodic_poll_reply_when_connected,
       "ArtNet periodic poll reply",
+      4096,
+      NULL,
+      1,
+      NULL
+  );
+
+  xTaskCreate(
+      autosave_universe_snapshots,
+      "ArtNet data autosave",
       4096,
       NULL,
       1,

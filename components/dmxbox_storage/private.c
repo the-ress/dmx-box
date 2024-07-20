@@ -23,10 +23,7 @@ make_blob_key(char *key, size_t key_size, uint16_t parent_id, uint16_t id) {
   if (parent_id && id) {
     return snprintf(key, key_size, "%x:%x", parent_id, id) < key_size;
   }
-  if (id) {
-    return snprintf(key, key_size, "%x", id) < key_size;
-  }
-  return false;
+  return snprintf(key, key_size, "%x", id) < key_size;
 }
 
 static bool parse_blob_key(const char *key, uint16_t *parent_id, uint16_t *id) {
