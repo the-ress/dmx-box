@@ -87,6 +87,24 @@ dmxbox_api_effect_get(httpd_req_t *req, uint16_t unused, uint16_t effect_id) {
   return dmxbox_rest_result_json(json);
 }
 
+static dmxbox_rest_result_t dmxbox_api_effect_delete(
+    httpd_req_t *req,
+    uint16_t unused,
+    uint16_t effect_id
+) {
+  ESP_LOGI(TAG, "DELETE effect=%u", effect_id);
+
+  esp_err_t ret = dmxbox_effect_delete(effect_id);
+  switch (ret) {
+  case ESP_OK:
+    return dmxbox_rest_200_ok;
+  case ESP_ERR_NOT_FOUND:
+    return dmxbox_rest_404_not_found;
+  default:
+    return dmxbox_rest_500_internal_server_error;
+  }
+}
+
 static dmxbox_rest_result_t
 dmxbox_api_effect_list(httpd_req_t *req, uint16_t unused_parent_id) {
   ESP_LOGI(TAG, "GET effects");
@@ -142,6 +160,7 @@ const dmxbox_rest_container_t effects_router = {
     .get = dmxbox_api_effect_get,
     .post = dmxbox_api_effect_post,
     .put = NULL,
+    .delete = dmxbox_api_effect_delete,
     .list = dmxbox_api_effect_list,
     .first_child = &effect_step_child_router,
 };

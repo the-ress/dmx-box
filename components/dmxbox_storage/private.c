@@ -195,6 +195,44 @@ esp_err_t dmxbox_storage_get_blob(
   return ret;
 }
 
+esp_err_t
+dmxbox_storage_delete_blob_from_storage(nvs_handle_t storage, const char *key) {
+  ESP_RETURN_ON_ERROR(
+      nvs_erase_key(storage, key),
+      TAG,
+      "failed to delete blob '%s'",
+      key
+  );
+  ESP_RETURN_ON_ERROR(nvs_commit(storage), TAG, "failed to commit");
+
+  return ESP_OK;
+}
+
+esp_err_t
+dmxbox_storage_delete_blob(const char *ns, uint16_t parent_id, uint16_t id) {
+  nvs_handle_t storage;
+  esp_err_t ret = nvs_open(ns, NVS_READWRITE, &storage);
+  switch (ret) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_NVS_NOT_FOUND:
+    return ESP_ERR_NOT_FOUND;
+  default:
+    return ret;
+  }
+  char key[NVS_KEY_NAME_MAX_SIZE];
+  if (make_blob_key(key, sizeof(key), parent_id, id)) {
+    ret = dmxbox_storage_delete_blob_from_storage(storage, key);
+  } else {
+    ret = ESP_ERR_NO_MEM;
+  }
+  nvs_close(storage);
+  if (ret == ESP_ERR_NVS_NOT_FOUND) {
+    return ESP_ERR_NOT_FOUND;
+  }
+  return ret;
+}
+
 esp_err_t dmxbox_storage_list_blobs(
     const char *ns,
     uint16_t parent_id,

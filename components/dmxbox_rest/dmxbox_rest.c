@@ -303,6 +303,31 @@ dmxbox_rest_put(httpd_req_t *req, const dmxbox_rest_uri_t *uri) {
   return dmxbox_rest_send(req, result);
 }
 
+static esp_err_t
+dmxbox_rest_delete(httpd_req_t *req, const dmxbox_rest_uri_t *uri) {
+  dmxbox_rest_result_t result;
+  if (uri->container->delete) {
+    ESP_LOGI(
+        TAG,
+        "DELETE %s/%u (parent_id=%u)",
+        uri->container->slug,
+        uri->id,
+        uri->parent_id
+    );
+    result = uri->container->delete (req, uri->parent_id, uri->id);
+  } else {
+    ESP_LOGE(
+        TAG,
+        "DELETE %s/%u (parent_id=%u) not implemented",
+        uri->container->slug,
+        uri->id,
+        uri->parent_id
+    );
+    result = dmxbox_rest_405_method_not_allowed;
+  }
+  return dmxbox_rest_send(req, result);
+}
+
 static esp_err_t dmxbox_rest_handler(httpd_req_t *req) {
   const dmxbox_rest_container_t *container = req->user_ctx;
 
@@ -325,6 +350,8 @@ static esp_err_t dmxbox_rest_handler(httpd_req_t *req) {
     return dmxbox_rest_post(req, &uri);
   case HTTP_PUT:
     return dmxbox_rest_put(req, &uri);
+  case HTTP_DELETE:
+    return dmxbox_rest_delete(req, &uri);
   default:
     return dmxbox_rest_send(req, dmxbox_rest_405_method_not_allowed);
   }
@@ -371,6 +398,14 @@ esp_err_t dmxbox_rest_register(
       httpd_register_uri_handler(server, &endpoint),
       TAG,
       "failed to register %s PUT endpoint",
+      router->slug
+  );
+
+  endpoint.method = HTTP_DELETE;
+  ESP_RETURN_ON_ERROR(
+      httpd_register_uri_handler(server, &endpoint),
+      TAG,
+      "failed to register %s DELETE endpoint",
       router->slug
   );
 

@@ -44,6 +44,12 @@ esp_err_t dmxbox_storage_get_blob(
 esp_err_t
 dmxbox_storage_get_blob_size(const char *ns, const char *key, size_t *size);
 
+esp_err_t
+dmxbox_storage_delete_blob_from_storage(nvs_handle_t storage, const char *key);
+
+esp_err_t
+dmxbox_storage_delete_blob(const char *ns, uint16_t parent_id, uint16_t id);
+
 typedef uint16_t (*dmxbox_storage_parse_id_t)(const char *key, void *ctx);
 
 esp_err_t dmxbox_storage_list_blobs(

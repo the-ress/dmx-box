@@ -45,6 +45,16 @@ esp_err_t dmxbox_effect_get(uint16_t effect_id, dmxbox_effect_t **result) {
   return ESP_OK;
 }
 
+esp_err_t dmxbox_effect_delete(uint16_t effect_id) {
+  ESP_RETURN_ON_ERROR(
+      dmxbox_storage_delete_blob(EFFECTS_NS, 0, effect_id),
+      TAG,
+      "failed to delete the blob for effect id '%u'",
+      effect_id
+  );
+  return ESP_OK;
+}
+
 esp_err_t dmxbox_effect_list(
     uint16_t skip,
     uint16_t *count,
