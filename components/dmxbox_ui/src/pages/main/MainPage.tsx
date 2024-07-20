@@ -4,6 +4,7 @@ export default function MainPage() {
   return (
     <ul>
       <li><LinkWithSearchParams to="/settings">Settings</LinkWithSearchParams></li>
+      <li><LinkWithSearchParams to="/artnet">ArtNet</LinkWithSearchParams></li>
       <li><LinkWithSearchParams to="/effects/1">Effect</LinkWithSearchParams></li>
     </ul>
   )

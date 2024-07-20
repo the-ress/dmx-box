@@ -46,6 +46,14 @@
     "security.type.wpa23": "WPA2/WPA3",
     "security.type.wpa3": "WPA3",
   },
+  "Artnet": {
+    "h1": "ArtNet",
+    "save": "Save",
+    "nativeUniverse": "Native universe",
+    "nativeUniverse.placeholder": "0",
+    "effectControlUniverse": "Effect control universe",
+    "effectControlUniverse.placeholder": "1",
+  },
   "zod": {
     "errors": {
       "too_small": {
