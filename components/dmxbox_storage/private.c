@@ -276,12 +276,17 @@ esp_err_t dmxbox_storage_list_blobs(
   }
 
   nvs_iterator_t iterator = NULL;
-  ESP_GOTO_ON_ERROR(
-      nvs_entry_find_in_handle(storage, NVS_TYPE_BLOB, &iterator),
-      exit,
-      TAG,
-      "failed to find first"
-  );
+  ret = nvs_entry_find_in_handle(storage, NVS_TYPE_BLOB, &iterator);
+  switch (ret) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_NVS_NOT_FOUND:
+    *count = 0;
+    return ESP_OK;
+  default:
+    ESP_LOGE(TAG, "failed to find first");
+    goto exit;
+  }
 
   size_t read = 0;
   while (ret == ESP_OK && read < *count) {
