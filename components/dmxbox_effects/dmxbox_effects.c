@@ -100,15 +100,32 @@ static step_channel_t *step_channel_alloc() {
   return calloc(1, sizeof(step_channel_t));
 }
 
-// static void step_channel_free(step_channel_t *data) { free(data); }
+static void step_channel_free(step_channel_t *data) { free(data); }
 
 static step_t *step_alloc() { return calloc(1, sizeof(step_t)); }
 
-// static void step_free(step_t *data) { free(data); }
+static void step_free(step_t *step) {
+  step_channel_t *channel = step->channels_head;
+  while (channel) {
+    step_channel_t *current_channel = channel;
+    channel = channel->next;
+    step_channel_free(current_channel);
+  }
+
+  free(step);
+}
 
 static effect_t *effect_alloc() { return calloc(1, sizeof(effect_t)); }
 
-// static void effect_free(effect_t *data) { free(data); }
+static void effect_free(effect_t *effect) {
+  step_t *step = effect->steps_head;
+  while (step) {
+    step_t *current_step = step;
+    step = step->next;
+    step_free(current_step);
+  }
+  free(effect);
+}
 
 static effect_t *effects_head = NULL;
 
@@ -316,7 +333,18 @@ effect_t *load_effect(uint16_t effect_id, dmxbox_effect_t *effect_data) {
     ESP_LOGI(TAG, "step %d", step_id);
 
     dmxbox_effect_step_t *step_data;
-    ESP_ERROR_CHECK(dmxbox_effect_step_get(effect_id, step_id, &step_data));
+    esp_err_t ret = (dmxbox_effect_step_get(effect_id, step_id, &step_data));
+    if (ret == ESP_ERR_NOT_FOUND) {
+      ESP_LOGW(
+          TAG,
+          "step %d not found, skipping effect %d",
+          step_id,
+          effect_id
+      );
+      effect_free(effect);
+      return NULL;
+    }
+    ESP_ERROR_CHECK(ret);
 
     step_t *step = step_alloc();
     step->time = step_data->time;
