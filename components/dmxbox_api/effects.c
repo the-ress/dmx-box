@@ -61,6 +61,40 @@ static dmxbox_rest_result_t dmxbox_api_effect_post(
   return dmxbox_rest_201_created("/api/effects/%u", id);
 }
 
+dmxbox_rest_result_t dmxbox_api_effect_put(
+    httpd_req_t *req,
+    uint16_t unused_parent_id,
+    uint16_t effect_id,
+    cJSON *json
+) {
+  ESP_LOGI(TAG, "PUT effect=%u", effect_id);
+  esp_err_t ret = dmxbox_effect_get(effect_id, NULL);
+  switch (ret) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_NOT_FOUND:
+    return dmxbox_rest_404_not_found;
+  default:
+    return dmxbox_rest_500_internal_server_error;
+  }
+
+  dmxbox_effect_t *parsed = dmxbox_effect_from_json_alloc(json);
+  if (!parsed) {
+    ESP_LOGE(TAG, "failed to parse effect");
+    return dmxbox_rest_400_bad_request;
+  }
+
+  ret = dmxbox_effect_set(effect_id, parsed);
+  free(parsed);
+
+  if (ret == ESP_OK) {
+    return dmxbox_rest_204_no_content;
+  }
+
+  ESP_LOGE(TAG, "failed to save effect");
+  return dmxbox_rest_500_internal_server_error;
+}
+
 static dmxbox_rest_result_t
 dmxbox_api_effect_get(httpd_req_t *req, uint16_t unused, uint16_t effect_id) {
   ESP_LOGI(TAG, "GET effect=%u", effect_id);
@@ -159,7 +193,7 @@ const dmxbox_rest_container_t effects_router = {
     .slug = "effects",
     .get = dmxbox_api_effect_get,
     .post = dmxbox_api_effect_post,
-    .put = NULL,
+    .put = dmxbox_api_effect_put,
     .delete = dmxbox_api_effect_delete,
     .list = dmxbox_api_effect_list,
     .first_child = &effect_step_child_router,

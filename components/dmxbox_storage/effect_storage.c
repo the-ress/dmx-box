@@ -2,6 +2,7 @@
 #include "dmxbox_storage.h"
 #include "entry.h"
 #include "esp_err.h"
+#include "esp_log.h"
 #include "private.h"
 #include <esp_check.h>
 #include <nvs.h>
@@ -70,5 +71,15 @@ esp_err_t dmxbox_effect_create(const dmxbox_effect_t *effect, uint16_t *id) {
       effect,
       effect_size(effect->step_count),
       id
+  );
+}
+
+esp_err_t dmxbox_effect_set(uint16_t effect_id, const dmxbox_effect_t *effect) {
+  return dmxbox_storage_set_blob(
+      EFFECTS_NS,
+      0,
+      effect_id,
+      effect_size(effect->step_count),
+      effect
   );
 }
