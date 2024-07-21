@@ -33,7 +33,7 @@ export default function ArtnetForm({ fields, onSubmit }: ArtnetFormProps) {
               label={t('Artnet:nativeUniverse')}
               name="nativeUniverse"
               placeholder={t('Artnet:nativeUniverse.placeholder')}
-              type="text"
+              type="number"
             />
           </div>
 
@@ -42,7 +42,7 @@ export default function ArtnetForm({ fields, onSubmit }: ArtnetFormProps) {
               label={t('Artnet:effectControlUniverse')}
               name="effectControlUniverse"
               placeholder={t('Artnet:effectControlUniverse.placeholder')}
-              type="text"
+              type="number"
             />
           </div>
         </form>

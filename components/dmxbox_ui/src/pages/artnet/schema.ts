@@ -1,10 +1,13 @@
 import { z } from 'zod'
 
-const MaxUniverseValue = 65535
+// TODO
 
-const UniverseSchema = z.number()
-  .min(0)
-  .max(MaxUniverseValue)
+// const MaxUniverseValue = 65535
+// const UniverseSchema = z.number()
+//   .min(0)
+//   .max(MaxUniverseValue)
+
+const UniverseSchema = z.string()
 
 export const ArtnetSchema = z.object({
   nativeUniverse: UniverseSchema,
