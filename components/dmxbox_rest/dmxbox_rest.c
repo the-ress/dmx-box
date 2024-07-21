@@ -329,6 +329,8 @@ dmxbox_rest_delete(httpd_req_t *req, const dmxbox_rest_uri_t *uri) {
 }
 
 static esp_err_t dmxbox_rest_handler(httpd_req_t *req) {
+  dmxbox_httpd_cors_allow_origin(req);
+
   const dmxbox_rest_container_t *container = req->user_ctx;
 
   dmxbox_rest_uri_t uri;

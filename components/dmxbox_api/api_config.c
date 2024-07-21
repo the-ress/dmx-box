@@ -11,11 +11,13 @@ static const char TAG[] = "dmxbox_api_config";
 
 static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
   ESP_LOGI(TAG, "GET request for %s", req->uri);
+
   ESP_RETURN_ON_ERROR(
       httpd_resp_set_type(req, "application/json"),
       TAG,
       "failed to set response content type"
   );
+
   dmxbox_httpd_cors_allow_origin(req);
 
   bool sta_mode_enabled = dmxbox_get_sta_mode_enabled();
@@ -54,6 +56,8 @@ static esp_err_t dmxbox_api_config_get(httpd_req_t *req) {
 
 static esp_err_t dmxbox_api_config_put(httpd_req_t *req) {
   ESP_LOGI(TAG, "PUT request for %s", req->uri);
+
+  dmxbox_httpd_cors_allow_origin(req);
 
   cJSON *root = NULL;
   ESP_RETURN_ON_ERROR(

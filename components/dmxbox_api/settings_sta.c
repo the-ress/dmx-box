@@ -14,6 +14,10 @@ static const char field_enabled[] = "enabled";
 static const char field_ssid[] = "ssid";
 
 static esp_err_t dmxbox_api_settings_sta_get(httpd_req_t *req) {
+  ESP_LOGI(TAG, "GET request for %s", req->uri);
+
+  dmxbox_httpd_cors_allow_origin(req);
+
   esp_err_t ret = ESP_ERR_NO_MEM;
   cJSON *json = cJSON_CreateObject();
   if (!json) {
@@ -41,6 +45,10 @@ exit:
 }
 
 static esp_err_t dmxbox_api_settings_sta_put(httpd_req_t *req) {
+  ESP_LOGI(TAG, "PUT request for %s", req->uri);
+
+  dmxbox_httpd_cors_allow_origin(req);
+
   esp_err_t ret = ESP_OK;
   const char *http_status = HTTPD_400;
   cJSON *json = NULL;
