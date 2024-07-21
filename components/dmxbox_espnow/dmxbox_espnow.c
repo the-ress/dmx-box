@@ -19,6 +19,11 @@ static const char *TAG = "dmxbox_espnow";
 
 #define ESPNOW_MAXDELAY 512
 
+typedef enum {
+  PACKET_TYPE_INVALID = 0,
+  PACKET_TYPE_EFFECT_SYNC,
+} packet_type_t;
+
 typedef struct {
   uint8_t mac_addr[ESP_NOW_ETH_ALEN];
   esp_now_send_status_t status;
@@ -30,14 +35,18 @@ typedef struct {
   int data_len;
 } recv_queue_event_t;
 
-/* User defined field of ESPNOW data in this example. */
+typedef struct __attribute__((packed)) {
+  packet_type_t type;
+  uint16_t crc;
+  uint8_t data[0];
+} packet_envelope_t;
+
 typedef struct __attribute__((packed)) {
   uint16_t effect_id;
   uint8_t level;
   uint8_t rate_raw;
   double progress;
   bool first_pass;
-  uint16_t crc;
 } effect_sync_packet_t;
 
 static dmxbox_espnow_effect_state_callback_t effect_state_callback = NULL;
@@ -95,18 +104,14 @@ static void dmxbox_espnow_recv_cb(
   }
 }
 
-/* Parse received ESPNOW data. */
-bool process_incoming_effect_sync_packet(
-    uint8_t *data,
-    uint16_t data_len,
-    effect_sync_packet_t *result_packet
-) {
-  if (data_len < sizeof(effect_sync_packet_t)) {
-    ESP_LOGE(TAG, "Receive ESPNOW data too short, len: %d", data_len);
-    return false;
+packet_type_t
+process_incoming_packet(uint8_t *data, uint16_t data_len, void **result) {
+  if (data_len < sizeof(packet_envelope_t)) {
+    ESP_LOGE(TAG, "Received ESPNOW data too short, len: %d", data_len);
+    return PACKET_TYPE_INVALID;
   }
 
-  effect_sync_packet_t *packet = (effect_sync_packet_t *)data;
+  packet_envelope_t *packet = (packet_envelope_t *)data;
 
   uint16_t crc = packet->crc;
   packet->crc = 0;
@@ -115,20 +120,28 @@ bool process_incoming_effect_sync_packet(
 
   if (crc_cal != crc) {
     ESP_LOGE(TAG, "ESPNOW data CRC doesn't match");
-    return false;
+    return PACKET_TYPE_INVALID;
   }
 
-  memcpy(result_packet, packet, sizeof(effect_sync_packet_t));
-  return true;
+  *result = &packet->data;
+  return packet->type;
 }
 
-void fill_effect_sync_packet_crc(effect_sync_packet_t *packet) {
+void send_packet(packet_type_t type, void *data, size_t length) {
+  size_t total_length = offsetof(packet_envelope_t, data) + length;
+
+  packet_envelope_t *packet = calloc(1, total_length);
+  packet->type = type;
+  memcpy(&packet->data, data, length);
+
   packet->crc = 0;
-  packet->crc = esp_crc16_le(
-      UINT16_MAX,
-      (uint8_t const *)packet,
-      sizeof(effect_sync_packet_t)
+  packet->crc = esp_crc16_le(UINT16_MAX, (uint8_t const *)packet, total_length);
+
+  ESP_ERROR_CHECK(
+      esp_now_send(broadcast_mac, (const uint8_t *)packet, total_length)
   );
+
+  free(packet);
 }
 
 static void espnow_send_loop(void *pvParameter) {
@@ -166,45 +179,68 @@ static void espnow_send_loop(void *pvParameter) {
   }
 }
 
+static void handle_effect_sync_packet(
+    const effect_sync_packet_t *packet,
+    const uint8_t *mac_addr
+) {
+  ESP_LOGI(
+      TAG,
+      "Received effect state data from: " MACSTR
+      ", level: %d, rate: %d, progress: %f, first_pass: %d",
+      MAC2STR(mac_addr),
+      packet->level,
+      packet->rate_raw,
+      packet->progress,
+      packet->first_pass
+  );
+  if (effect_state_callback) {
+    effect_state_callback(
+        packet->effect_id,
+        packet->level,
+        packet->rate_raw,
+        packet->progress,
+        packet->first_pass
+    );
+  }
+}
+
 static void espnow_recv_loop(void *pvParameter) {
   vTaskDelay(5000 / portTICK_PERIOD_MS);
   ESP_LOGI(TAG, "Start receiving broadcast data");
 
   recv_queue_event_t evt;
   while (xQueueReceive(recv_queue, &evt, portMAX_DELAY) == pdTRUE) {
-    effect_sync_packet_t packet;
-    bool success =
-        process_incoming_effect_sync_packet(evt.data, evt.data_len, &packet);
-    free(evt.data);
+    void *packet_data;
+    packet_type_t packet_type =
+        process_incoming_packet(evt.data, evt.data_len, &packet_data);
 
-    if (success) {
-      ESP_LOGI(
-          TAG,
-          "Received effect state data from: " MACSTR
-          ", len: %d, level: %d, rate: %d, progress: %f, first_pass: %d",
-          MAC2STR(evt.mac_addr),
-          evt.data_len,
-          packet.level,
-          packet.rate_raw,
-          packet.progress,
-          packet.first_pass
+    switch (packet_type) {
+    case PACKET_TYPE_EFFECT_SYNC:
+      handle_effect_sync_packet(
+          (effect_sync_packet_t *)packet_data,
+          evt.mac_addr
       );
-      if (effect_state_callback) {
-        effect_state_callback(
-            packet.effect_id,
-            packet.level,
-            packet.rate_raw,
-            packet.progress,
-            packet.first_pass
-        );
-      }
-    } else {
+      break;
+
+    case PACKET_TYPE_INVALID:
       ESP_LOGI(
           TAG,
           "Received invalid data from: " MACSTR "",
           MAC2STR(evt.mac_addr)
       );
+      break;
+
+    default:
+      ESP_LOGI(
+          TAG,
+          "Received unknown data type %d from: " MACSTR "",
+          packet_type,
+          MAC2STR(evt.mac_addr)
+      );
+      break;
     }
+
+    free(evt.data);
 
     /* If MAC address does not exist in peer list, add it to peer list. */
     if (esp_now_is_peer_exist(evt.mac_addr) == false) {
@@ -245,12 +281,7 @@ void dmxbox_espnow_send_effect_state(
       .first_pass = first_pass,
   };
 
-  fill_effect_sync_packet_crc(&packet);
-  ESP_ERROR_CHECK(esp_now_send(
-      broadcast_mac,
-      (uint8_t *)&packet,
-      sizeof(effect_sync_packet_t)
-  ));
+  send_packet(PACKET_TYPE_EFFECT_SYNC, &packet, sizeof(effect_sync_packet_t));
 }
 
 void dmxbox_espnow_init() {

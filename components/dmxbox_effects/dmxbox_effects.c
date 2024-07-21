@@ -182,7 +182,7 @@ static void distributed_follower_callback(
   if (xQueueSend(
           effect_state_sync_queue,
           &event,
-          SYNC_QUEUE_MAX_DELAY * portTICK_PERIOD_MS
+          SYNC_QUEUE_MAX_DELAY / portTICK_PERIOD_MS
       ) != pdTRUE) {
     ESP_LOGW(TAG, "Failed to enqueue sync event for effect %d", effect_id);
   }
