@@ -26,6 +26,7 @@ typedef struct dmxbox_rest_uri {
   const struct dmxbox_rest_container *container;
   uint16_t parent_id;
   uint16_t id;
+  bool has_id;
 } dmxbox_rest_uri_t;
 
 typedef dmxbox_rest_result_t (*dmxbox_rest_delete_t)(
@@ -56,6 +57,7 @@ typedef dmxbox_rest_result_t (*dmxbox_rest_put_t)(
 
 typedef struct dmxbox_rest_container {
   const char *slug;
+  bool allow_zero;
   dmxbox_rest_delete_t delete;
   dmxbox_rest_get_t get;
   dmxbox_rest_list_t list;

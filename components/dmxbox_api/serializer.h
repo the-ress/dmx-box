@@ -178,3 +178,8 @@ bool dmxbox_deserialize_trailing_array(
   bool dmxbox_##name##_from_json(const cJSON *json, type *object) {            \
     return dmxbox_deserialize_object(name##_serializer, json, object);         \
   }
+
+#define DMXBOX_API_SERIALIZER_HEADERS(type, name)                              \
+  cJSON *dmxbox_##name##_to_json(const type *object);                          \
+  type *dmxbox_##name##_from_json_alloc(const cJSON *json);                    \
+  bool dmxbox_##name##_from_json(const cJSON *json, type *object);

@@ -12,7 +12,6 @@
 #include "artnet_const.h"
 #include "button.h"
 #include "dmxbox_artnet.h"
-#include "dmxbox_const.h"
 #include "dmxbox_led.h"
 #include "dmxbox_storage.h"
 #include "hashmap.h"
@@ -792,7 +791,17 @@ const uint8_t *dmxbox_artnet_get_native_universe_data() {
   return dmxbox_artnet_native_universe->data;
 }
 
-const uint8_t *dmxbox_artnet_get_universe_data(uint16_t address) {
+bool dmxbox_artnet_get_universe_data(
+    uint16_t address,
+    uint8_t data[DMX_CHANNEL_COUNT]
+) {
+  taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
+
   const dmxbox_artnet_universe_t *universe = find_universe(address);
-  return universe ? universe->data : NULL;
+  if (universe) {
+    memcpy(data, universe->data, DMX_CHANNEL_COUNT);
+  }
+
+  taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
+  return !!universe;
 }

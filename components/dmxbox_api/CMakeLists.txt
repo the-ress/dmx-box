@@ -3,6 +3,7 @@ idf_component_register(
     api_config.c
     api_strings.c
     dmxbox_api.c
+    artnet.c
     effects.c
     effects_steps.c
     settings_artnet.c
@@ -12,6 +13,7 @@ idf_component_register(
     ws_ap_found.c
   INCLUDE_DIRS include
   REQUIRES
+    dmxbox_artnet
     dmxbox_httpd
     dmxbox_rest
     dmxbox_storage

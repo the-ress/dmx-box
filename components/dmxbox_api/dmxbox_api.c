@@ -2,6 +2,7 @@
 #include <esp_http_server.h>
 
 #include "api_config.h"
+#include "artnet.h"
 #include "dmxbox_api.h"
 #include "dmxbox_httpd.h"
 #include "dmxbox_rest.h"
@@ -31,9 +32,14 @@ esp_err_t dmxbox_api_register(httpd_handle_t server) {
       "settings_artnet register failed"
   );
   ESP_RETURN_ON_ERROR(
+      dmxbox_rest_register(server, &artnet_router),
+      TAG,
+      "artnet register failed"
+  );
+  ESP_RETURN_ON_ERROR(
       dmxbox_rest_register(server, &effects_router),
       TAG,
-      "effects steps register failed"
+      "effects register failed"
   );
   ESP_RETURN_ON_ERROR(
       dmxbox_httpd_cors_register_options(server, "/api/*"),

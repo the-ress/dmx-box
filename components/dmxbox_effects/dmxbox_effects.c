@@ -648,16 +648,6 @@ static void process_effect(
   );
 }
 
-static void get_control_data(uint8_t control_data[512]) {
-  taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
-  const uint8_t *control_data_unsafe =
-      dmxbox_artnet_get_universe_data(effect_control_universe_address);
-  if (control_data_unsafe) {
-    memcpy(control_data, control_data_unsafe, DMX_CHANNEL_COUNT);
-  }
-  taskEXIT_CRITICAL(&dmxbox_artnet_spinlock);
-}
-
 static effect_t *find_effect_by_distributed_id(uint16_t distributed_id) {
   for (effect_t *effect = effects_head; effect; effect = effect->next) {
     if (effect->distributed_id == distributed_id) {
@@ -706,7 +696,10 @@ void handle_sync_queue(int64_t current_time_us, int64_t time_increment_us) {
 static void
 dmxbox_effects_tick(int64_t current_time_us, int64_t time_increment_us) {
   uint8_t control_data[DMX_CHANNEL_COUNT] = {0};
-  get_control_data(control_data);
+  dmxbox_artnet_get_universe_data(
+      effect_control_universe_address,
+      control_data
+  );
 
   uint8_t tick_data[DMX_CHANNEL_COUNT] = {0};
   for (effect_t *effect = effects_head; effect; effect = effect->next) {

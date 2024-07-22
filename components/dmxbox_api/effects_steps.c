@@ -146,11 +146,13 @@ dmxbox_api_effect_step_list(httpd_req_t *req, uint16_t effect_id) {
           effect_id,
           steps[i].id
       );
+      cJSON_free(array);
       goto exit;
     }
     if (!cJSON_AddNumberToObject(json, "id", steps[i].id)) {
       ESP_LOGE(TAG, "failed to add id for %u", steps[i].id);
       cJSON_free(json);
+      cJSON_free(array);
       goto exit;
     }
     if (!cJSON_AddItemToArray(array, json)) {
@@ -161,6 +163,7 @@ dmxbox_api_effect_step_list(httpd_req_t *req, uint16_t effect_id) {
           steps[i].id
       );
       cJSON_free(json);
+      cJSON_free(array);
       goto exit;
     }
   }

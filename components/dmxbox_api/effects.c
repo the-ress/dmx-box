@@ -164,16 +164,19 @@ dmxbox_api_effect_list(httpd_req_t *req, uint16_t unused_parent_id) {
     cJSON *json = dmxbox_effect_to_json(effects[i].data);
     if (!json) {
       ESP_LOGE(TAG, "failed to serialize effect %u", effects[i].id);
+      cJSON_free(array);
       goto exit;
     }
     if (!cJSON_AddNumberToObject(json, "id", effects[i].id)) {
       ESP_LOGE(TAG, "failed to add id for %u", effects[i].id);
       cJSON_free(json);
+      cJSON_free(array);
       goto exit;
     }
     if (!cJSON_AddItemToArray(array, json)) {
       ESP_LOGE(TAG, "failed to add effect %u to array", effects[i].id);
       cJSON_free(json);
+      cJSON_free(array);
       goto exit;
     }
   }

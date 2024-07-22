@@ -2,9 +2,14 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+#include "dmxbox_const.h"
+
 extern portMUX_TYPE dmxbox_artnet_spinlock;
 const uint8_t *dmxbox_artnet_get_native_universe_data();
-const uint8_t *dmxbox_artnet_get_universe_data(uint16_t address);
+bool dmxbox_artnet_get_universe_data(
+    uint16_t address,
+    uint8_t data[DMX_CHANNEL_COUNT]
+);
 
 void dmxbox_artnet_init();
 

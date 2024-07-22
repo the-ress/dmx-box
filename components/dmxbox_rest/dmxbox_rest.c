@@ -21,6 +21,7 @@ static esp_err_t dmxbox_rest_parse_uri(
   }
   result->parent_id = 0;
   result->id = 0;
+  result->has_id = false;
   result->container = NULL;
 
   const char *uri = req->uri;
@@ -38,18 +39,28 @@ static esp_err_t dmxbox_rest_parse_uri(
     return ESP_OK;
   }
 
-  uri = dmxbox_uri_match_positive_u16(&result->id, uri);
-  if (!uri) {
-    ESP_LOGE(TAG, "uri %s' id not positive u16", req->uri);
-    return ESP_ERR_NOT_FOUND;
+  result->has_id = true;
+  if (container->allow_zero) {
+    uri = dmxbox_uri_match_u16(&result->id, uri);
+    if (!uri) {
+      ESP_LOGE(TAG, "uri %s' id not u16", req->uri);
+      return ESP_ERR_NOT_FOUND;
+    }
+  } else {
+    uri = dmxbox_uri_match_positive_u16(&result->id, uri);
+    if (!uri) {
+      ESP_LOGE(TAG, "uri %s' id not positive u16", req->uri);
+      return ESP_ERR_NOT_FOUND;
+    }
   }
 
   if (*uri == '\0') {
     ESP_LOGI(
         TAG,
-        "uri '%s' => %s id=%u",
+        "uri '%s' => %s has_id=%u id=%u",
         req->uri,
         container->slug,
+        result->has_id,
         result->id
     );
     return ESP_OK;
@@ -57,6 +68,7 @@ static esp_err_t dmxbox_rest_parse_uri(
 
   result->parent_id = result->id;
   result->id = 0;
+  result->has_id = false;
 
   for (const dmxbox_rest_child_container_t *child = container->first_child;
        child;
@@ -80,18 +92,27 @@ static esp_err_t dmxbox_rest_parse_uri(
       return ESP_OK;
     }
 
-    child_uri = dmxbox_uri_match_positive_u16(&result->id, child_uri);
-    if (!child_uri) {
-      ESP_LOGE(TAG, "uri '%s' child id not positive u16", req->uri);
-      return ESP_ERR_NOT_FOUND;
+    if (child->container->allow_zero) {
+      child_uri = dmxbox_uri_match_u16(&result->id, child_uri);
+      if (!child_uri) {
+        ESP_LOGE(TAG, "uri '%s' child id not u16", req->uri);
+        return ESP_ERR_NOT_FOUND;
+      }
+    } else {
+      child_uri = dmxbox_uri_match_positive_u16(&result->id, child_uri);
+      if (!child_uri) {
+        ESP_LOGE(TAG, "uri '%s' child id not positive u16", req->uri);
+        return ESP_ERR_NOT_FOUND;
+      }
     }
 
     if (*child_uri == '\0') {
       ESP_LOGI(
           TAG,
-          "uri '%s' parent_id=%u id=%u",
+          "uri '%s' parent_id=%u has_id=%u id=%u",
           req->uri,
           result->parent_id,
+          result->has_id,
           result->id
       );
       return ESP_OK;
@@ -183,7 +204,7 @@ exit:
 static esp_err_t
 dmxbox_rest_get(httpd_req_t *req, const dmxbox_rest_uri_t *uri) {
   dmxbox_rest_result_t result;
-  if (uri->id) {
+  if (uri->has_id) {
     if (uri->container->get) {
       ESP_LOGI(
           TAG,

@@ -14,6 +14,7 @@ esp_err_t dmxbox_webserver_start() {
   config.max_uri_handlers = 32;
   config.lru_purge_enable = true;
   config.uri_match_fn = httpd_uri_match_wildcard;
+  config.stack_size = 10000;
 
   // Start the httpd server
   ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
