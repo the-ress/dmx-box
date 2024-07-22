@@ -32,17 +32,8 @@ dmxbox_wifi_config_t dmxbox_wifi_config = {
         },
 };
 
-bool is_in_disconnect = false;
-
 static esp_netif_t *ap_interface;
 static esp_netif_t *sta_interface;
-
-static esp_err_t dmxbox_wifi_disconnect() {
-  is_in_disconnect = true;
-  esp_err_t ret = esp_wifi_disconnect();
-  is_in_disconnect = false;
-  return ret;
-}
 
 static void dmxbox_wifi_init() {
   ESP_ERROR_CHECK(esp_netif_init());
@@ -339,7 +330,7 @@ void wifi_update_config(
 
   if (sta_mode_enabled) {
     ESP_ERROR_CHECK(dmxbox_wifi_disconnect());
-    ESP_ERROR_CHECK(esp_wifi_connect());
+    ESP_ERROR_CHECK(dmxbox_wifi_connect());
   }
 }
 

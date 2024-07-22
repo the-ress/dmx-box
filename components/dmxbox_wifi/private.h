@@ -1,4 +1,5 @@
 #pragma once
+#include <esp_err.h>
 #include <stdbool.h>
 
 #define CONFIG_WIFI_AP_SSID "DmxBox_"
@@ -12,10 +13,10 @@
 #define CONFIG_WIFI_STA_PASSWORD ""
 #define CONFIG_WIFI_STA_AUTH_MODE WIFI_AUTH_WPA2_PSK
 #define CONFIG_WIFI_STA_MAXIMUM_RETRY 3
-#define CONFIG_WIFI_STA_RETRY_INTERVAL 30000
+#define CONFIG_WIFI_STA_RETRY_BACKOFF_MS 30000
 
-extern bool is_in_disconnect;
+esp_err_t dmxbox_wifi_connect();
+esp_err_t dmxbox_wifi_disconnect();
 
 void dmxbox_wifi_register_event_handlers();
-
 void dmxbox_wifi_scan_on_done();
