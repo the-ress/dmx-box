@@ -10,7 +10,5 @@ typedef struct dmxbox_wifi_scan_result {
 
 typedef void (*dmxbox_wifi_scan_callback_t)(dmxbox_wifi_scan_result_t *);
 
-void dmxbox_wifi_scan_on_done();
-
 esp_err_t dmxbox_wifi_scan_register_callback(dmxbox_wifi_scan_callback_t);
 esp_err_t dmxbox_wifi_scan_start();

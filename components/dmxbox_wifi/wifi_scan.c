@@ -5,6 +5,8 @@
 #include <esp_log.h>
 #include <stddef.h>
 
+#include "private.h"
+
 static const char TAG[] = "dmxbox_wifi_scan";
 
 static dmxbox_wifi_scan_callback_t g_callback = NULL;

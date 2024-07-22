@@ -1,6 +1,7 @@
 idf_component_register(
   SRCS
     wifi.c
+    wifi_events.c
     wifi_scan.c
   INCLUDE_DIRS include
   REQUIRES
