@@ -47,7 +47,7 @@ static dmxbox_rest_result_t dmxbox_api_effect_post(
   dmxbox_effect_t *parsed = dmxbox_effect_from_json_alloc(json);
   if (!parsed) {
     ESP_LOGE(TAG, "failed to parse effect");
-    return dmxbox_rest_400_bad_request;
+    return dmxbox_rest_400_bad_request("failed to parse effect");
   }
 
   uint16_t id;
@@ -56,7 +56,7 @@ static dmxbox_rest_result_t dmxbox_api_effect_post(
 
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "failed to create effect");
-    return dmxbox_rest_500_internal_server_error;
+    return dmxbox_rest_500_internal_server_error("failed to create effect");
   }
 
   return dmxbox_rest_201_created("/api/effects/%u", id);
@@ -69,23 +69,25 @@ dmxbox_rest_result_t dmxbox_api_effect_put(
     cJSON *json
 ) {
   ESP_LOGI(TAG, "PUT effect=%u", effect_id);
-  esp_err_t ret = dmxbox_effect_get(effect_id, NULL);
-  switch (ret) {
-  case ESP_OK:
-    break;
-  case ESP_ERR_NOT_FOUND:
-    return dmxbox_rest_404_not_found;
-  default:
-    return dmxbox_rest_500_internal_server_error;
-  }
+  // esp_err_t ret = dmxbox_effect_get(effect_id, NULL);
+  // switch (ret) {
+  // case ESP_OK:
+  //   break;
+  // case ESP_ERR_NOT_FOUND:
+  //   return dmxbox_rest_404_not_found("effect not found");
+  // default:
+  //   return dmxbox_rest_500_internal_server_error(
+  //       "failed to get the effect from storage"
+  //   );
+  // }
 
   dmxbox_effect_t *parsed = dmxbox_effect_from_json_alloc(json);
   if (!parsed) {
     ESP_LOGE(TAG, "failed to parse effect");
-    return dmxbox_rest_400_bad_request;
+    return dmxbox_rest_400_bad_request("failed to parse effect");
   }
 
-  ret = dmxbox_effect_set(effect_id, parsed);
+  esp_err_t ret = dmxbox_effect_set(effect_id, parsed);
   free(parsed);
 
   if (ret == ESP_OK) {
@@ -93,7 +95,7 @@ dmxbox_rest_result_t dmxbox_api_effect_put(
   }
 
   ESP_LOGE(TAG, "failed to save effect");
-  return dmxbox_rest_500_internal_server_error;
+  return dmxbox_rest_500_internal_server_error("failed to save effect");
 }
 
 static dmxbox_rest_result_t
@@ -106,9 +108,11 @@ dmxbox_api_effect_get(httpd_req_t *req, uint16_t unused, uint16_t effect_id) {
   case ESP_OK:
     break;
   case ESP_ERR_NOT_FOUND:
-    return dmxbox_rest_404_not_found;
+    return dmxbox_rest_404_not_found("effect not found");
   default:
-    return dmxbox_rest_500_internal_server_error;
+    return dmxbox_rest_500_internal_server_error(
+        "failed to get the effect from storage"
+    );
   }
 
   cJSON *json = dmxbox_effect_to_json(effect);
@@ -116,7 +120,7 @@ dmxbox_api_effect_get(httpd_req_t *req, uint16_t unused, uint16_t effect_id) {
 
   if (!json) {
     ESP_LOGE(TAG, "failed to serialize json");
-    return dmxbox_rest_500_internal_server_error;
+    return dmxbox_rest_500_internal_server_error("failed to serialize json");
   }
 
   return dmxbox_rest_result_json(json);
@@ -134,9 +138,11 @@ static dmxbox_rest_result_t dmxbox_api_effect_delete(
   case ESP_OK:
     return dmxbox_rest_200_ok;
   case ESP_ERR_NOT_FOUND:
-    return dmxbox_rest_404_not_found;
+    return dmxbox_rest_404_not_found("effect not found");
   default:
-    return dmxbox_rest_500_internal_server_error;
+    return dmxbox_rest_500_internal_server_error(
+        "failed to delete the effect from storage"
+    );
   }
 }
 
@@ -144,12 +150,10 @@ static dmxbox_rest_result_t
 dmxbox_api_effect_list(httpd_req_t *req, uint16_t unused_parent_id) {
   ESP_LOGI(TAG, "GET effects");
 
-  dmxbox_rest_result_t result = dmxbox_rest_500_internal_server_error;
-
   cJSON *array = cJSON_CreateArray();
   if (!array) {
     ESP_LOGE(TAG, "failed to allocate array");
-    return result;
+    return dmxbox_rest_500_internal_server_error("failed to allocate array");
   }
 
   dmxbox_storage_entry_t effects[30];
@@ -157,26 +161,35 @@ dmxbox_api_effect_list(httpd_req_t *req, uint16_t unused_parent_id) {
   if (dmxbox_effect_list(0, &count, effects) != ESP_OK) {
     ESP_LOGE(TAG, "failed to list effects");
     cJSON_free(array);
-    return result;
+    return dmxbox_rest_500_internal_server_error("failed to list effects");
   }
 
+  dmxbox_rest_result_t result;
   for (size_t i = 0; i < count; i++) {
     cJSON *json = dmxbox_effect_to_json(effects[i].data);
     if (!json) {
       ESP_LOGE(TAG, "failed to serialize effect %u", effects[i].id);
       cJSON_free(array);
+      result =
+          dmxbox_rest_500_internal_server_error("failed to serialize effect");
       goto exit;
     }
     if (!cJSON_AddNumberToObject(json, "id", effects[i].id)) {
       ESP_LOGE(TAG, "failed to add id for %u", effects[i].id);
       cJSON_free(json);
       cJSON_free(array);
+      result = dmxbox_rest_500_internal_server_error(
+          "failed to add id to effect object"
+      );
       goto exit;
     }
     if (!cJSON_AddItemToArray(array, json)) {
       ESP_LOGE(TAG, "failed to add effect %u to array", effects[i].id);
       cJSON_free(json);
       cJSON_free(array);
+      result =
+          dmxbox_rest_500_internal_server_error("failed to add effect to array"
+          );
       goto exit;
     }
   }

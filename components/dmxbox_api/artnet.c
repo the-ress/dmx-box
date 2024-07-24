@@ -22,7 +22,7 @@ dmxbox_api_artnet_get(httpd_req_t *req, uint16_t unused, uint16_t universe_id) {
 
   uint8_t data[DMX_CHANNEL_COUNT];
   if (!dmxbox_artnet_get_universe_data(universe_id, data)) {
-    return dmxbox_rest_404_not_found;
+    return dmxbox_rest_404_not_found("artnet universe not found");
   }
 
   uint16_t active_channel_count = 0;
@@ -43,7 +43,7 @@ dmxbox_api_artnet_get(httpd_req_t *req, uint16_t unused, uint16_t universe_id) {
   cJSON *array = cJSON_CreateArray();
   if (!array) {
     ESP_LOGE(TAG, "failed to allocate array");
-    return dmxbox_rest_500_internal_server_error;
+    return dmxbox_rest_500_internal_server_error("failed to allocate array");
   }
 
   for (size_t i = 0; i < active_channel_count; i++) {
@@ -55,7 +55,8 @@ dmxbox_api_artnet_get(httpd_req_t *req, uint16_t unused, uint16_t universe_id) {
           active_channels[i].channel.index
       );
       cJSON_free(array);
-      return dmxbox_rest_500_internal_server_error;
+      return dmxbox_rest_500_internal_server_error("failed to serialize channel"
+      );
     }
     if (!cJSON_AddItemToArray(array, json)) {
       ESP_LOGE(
@@ -65,7 +66,9 @@ dmxbox_api_artnet_get(httpd_req_t *req, uint16_t unused, uint16_t universe_id) {
       );
       cJSON_free(json);
       cJSON_free(array);
-      return dmxbox_rest_500_internal_server_error;
+      return dmxbox_rest_500_internal_server_error(
+          "failed to add channel to array"
+      );
     }
   }
 

@@ -1,4 +1,5 @@
 #include "dmxbox_rest.h"
+#include "cJSON.h"
 #include "dmxbox_httpd.h"
 #include "dmxbox_uri.h"
 #include "esp_check.h"
@@ -129,14 +130,37 @@ static esp_err_t dmxbox_rest_parse_uri(
 const dmxbox_rest_result_t dmxbox_rest_200_ok = {.status = "200 OK"};
 const dmxbox_rest_result_t dmxbox_rest_204_no_content = {
     .status = "204 No Content"};
-const dmxbox_rest_result_t dmxbox_rest_400_bad_request = {
-    .status = "400 Bad Request"};
-const dmxbox_rest_result_t dmxbox_rest_404_not_found = {
-    .status = "404 Not Found"};
+
+dmxbox_rest_result_t dmxbox_rest_400_bad_request(const char *message) {
+  cJSON *json = cJSON_CreateObject();
+  cJSON_AddStringToObject(json, "message", message);
+  dmxbox_rest_result_t result = {.status = "400 Bad Request", .body = json};
+  return result;
+}
+
+dmxbox_rest_result_t dmxbox_rest_404_not_found(const char *message) {
+  cJSON *json = cJSON_CreateObject();
+  cJSON_AddStringToObject(json, "message", message);
+  dmxbox_rest_result_t result = {
+      .status = "404 Not Found",
+      .body = json,
+  };
+  return result;
+}
+
 const dmxbox_rest_result_t dmxbox_rest_405_method_not_allowed = {
     .status = "405 Method Not Allowed"};
-const dmxbox_rest_result_t dmxbox_rest_500_internal_server_error = {
-    .status = "500 Internal Server Error"};
+
+dmxbox_rest_result_t dmxbox_rest_500_internal_server_error(const char *message
+) {
+  cJSON *json = cJSON_CreateObject();
+  cJSON_AddStringToObject(json, "message", message);
+  const dmxbox_rest_result_t result = {
+      .status = "500 Internal Server Error",
+      .body = json,
+  };
+  return result;
+}
 
 dmxbox_rest_result_t dmxbox_rest_result_json(cJSON *json) {
   dmxbox_rest_result_t result = dmxbox_rest_200_ok;
@@ -156,7 +180,9 @@ dmxbox_rest_result_t dmxbox_rest_201_created(const char *location_format, ...) {
   );
   if (chars_needed >= sizeof(result.location)) {
     ESP_LOGE(TAG, "failed to create Location header");
-    return dmxbox_rest_500_internal_server_error;
+    return dmxbox_rest_500_internal_server_error(
+        "failed to create Location header"
+    );
   }
   return result;
 }
@@ -360,10 +386,13 @@ static esp_err_t dmxbox_rest_handler(httpd_req_t *req) {
     break;
   case ESP_ERR_NOT_FOUND:
     ESP_LOGE(TAG, "not found: %s", req->uri);
-    return dmxbox_rest_send(req, dmxbox_rest_404_not_found);
+    return dmxbox_rest_send(req, dmxbox_rest_404_not_found("route not found"));
   default:
     ESP_LOGE(TAG, "failed to parse uri: %s", req->uri);
-    return dmxbox_rest_send(req, dmxbox_rest_500_internal_server_error);
+    return dmxbox_rest_send(
+        req,
+        dmxbox_rest_500_internal_server_error("failed to parse uri")
+    );
   }
 
   switch (req->method) {

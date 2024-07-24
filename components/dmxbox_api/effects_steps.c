@@ -49,9 +49,11 @@ dmxbox_rest_result_t dmxbox_api_effect_step_get(
   case ESP_OK:
     break;
   case ESP_ERR_NOT_FOUND:
-    return dmxbox_rest_404_not_found;
+    return dmxbox_rest_404_not_found("effect step not found");
   default:
-    return dmxbox_rest_500_internal_server_error;
+    return dmxbox_rest_500_internal_server_error(
+        "failed to get the effect step from storage"
+    );
   }
 
   cJSON *json = dmxbox_effect_step_to_json(effect_step);
@@ -59,7 +61,7 @@ dmxbox_rest_result_t dmxbox_api_effect_step_get(
 
   if (!json) {
     ESP_LOGE(TAG, "failed to serialize json");
-    return dmxbox_rest_500_internal_server_error;
+    return dmxbox_rest_500_internal_server_error("failed to serialize json");
   }
 
   return dmxbox_rest_result_json(json);
@@ -72,23 +74,25 @@ dmxbox_rest_result_t dmxbox_api_effect_step_put(
     cJSON *json
 ) {
   ESP_LOGI(TAG, "PUT effect=%u step=%u", effect_id, step_id);
-  esp_err_t ret = dmxbox_effect_step_get(effect_id, step_id, NULL);
-  switch (ret) {
-  case ESP_OK:
-    break;
-  case ESP_ERR_NOT_FOUND:
-    return dmxbox_rest_404_not_found;
-  default:
-    return dmxbox_rest_500_internal_server_error;
-  }
+  // esp_err_t ret = dmxbox_effect_step_get(effect_id, step_id, NULL);
+  // switch (ret) {
+  // case ESP_OK:
+  //   break;
+  // case ESP_ERR_NOT_FOUND:
+  //   return dmxbox_rest_404_not_found("effect step not found");
+  // default:
+  //   return dmxbox_rest_500_internal_server_error(
+  //       "failed to get the effect step from storage"
+  //   );
+  // }
 
   dmxbox_effect_step_t *parsed = dmxbox_effect_step_from_json_alloc(json);
   if (!parsed) {
     ESP_LOGE(TAG, "failed to parse json");
-    return dmxbox_rest_400_bad_request;
+    return dmxbox_rest_400_bad_request("failed to parse effect step");
   }
 
-  ret = dmxbox_effect_step_set(effect_id, step_id, parsed);
+  esp_err_t ret = dmxbox_effect_step_set(effect_id, step_id, parsed);
   free(parsed);
 
   if (ret == ESP_OK) {
@@ -96,7 +100,9 @@ dmxbox_rest_result_t dmxbox_api_effect_step_put(
   }
 
   ESP_LOGE(TAG, "failed to save effect step");
-  return dmxbox_rest_500_internal_server_error;
+  return dmxbox_rest_500_internal_server_error(
+      "failed to save effect step to storage"
+  );
 }
 
 static dmxbox_rest_result_t dmxbox_api_effect_step_delete(
@@ -111,9 +117,11 @@ static dmxbox_rest_result_t dmxbox_api_effect_step_delete(
   case ESP_OK:
     return dmxbox_rest_200_ok;
   case ESP_ERR_NOT_FOUND:
-    return dmxbox_rest_404_not_found;
+    return dmxbox_rest_404_not_found("effect step not found");
   default:
-    return dmxbox_rest_500_internal_server_error;
+    return dmxbox_rest_500_internal_server_error(
+        "failed to delete the effect step to storage"
+    );
   }
 }
 
@@ -121,12 +129,10 @@ static dmxbox_rest_result_t
 dmxbox_api_effect_step_list(httpd_req_t *req, uint16_t effect_id) {
   ESP_LOGI(TAG, "GET effect=%u steps", effect_id);
 
-  dmxbox_rest_result_t result = dmxbox_rest_500_internal_server_error;
-
   cJSON *array = cJSON_CreateArray();
   if (!array) {
     ESP_LOGE(TAG, "failed to allocate array");
-    return result;
+    return dmxbox_rest_500_internal_server_error("failed to allocate array");
   }
 
   dmxbox_storage_entry_t steps[30];
@@ -134,9 +140,10 @@ dmxbox_api_effect_step_list(httpd_req_t *req, uint16_t effect_id) {
   if (dmxbox_effect_step_list(effect_id, 0, &count, steps) != ESP_OK) {
     ESP_LOGE(TAG, "failed to list steps");
     cJSON_free(array);
-    return result;
+    return dmxbox_rest_500_internal_server_error("failed to list steps");
   }
 
+  dmxbox_rest_result_t result;
   for (size_t i = 0; i < count; i++) {
     cJSON *json = dmxbox_effect_step_to_json(steps[i].data);
     if (!json) {
@@ -147,12 +154,18 @@ dmxbox_api_effect_step_list(httpd_req_t *req, uint16_t effect_id) {
           steps[i].id
       );
       cJSON_free(array);
+      result = dmxbox_rest_500_internal_server_error(
+          "failed to serialize effect step"
+      );
       goto exit;
     }
     if (!cJSON_AddNumberToObject(json, "id", steps[i].id)) {
       ESP_LOGE(TAG, "failed to add id for %u", steps[i].id);
       cJSON_free(json);
       cJSON_free(array);
+      result = dmxbox_rest_500_internal_server_error(
+          "failed to add id to effect step object"
+      );
       goto exit;
     }
     if (!cJSON_AddItemToArray(array, json)) {
@@ -164,6 +177,9 @@ dmxbox_api_effect_step_list(httpd_req_t *req, uint16_t effect_id) {
       );
       cJSON_free(json);
       cJSON_free(array);
+      result = dmxbox_rest_500_internal_server_error(
+          "failed to add effect step to array"
+      );
       goto exit;
     }
   }

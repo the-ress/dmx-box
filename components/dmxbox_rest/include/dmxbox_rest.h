@@ -11,10 +11,10 @@ typedef struct dmxbox_rest_result {
 
 extern const dmxbox_rest_result_t dmxbox_rest_200_ok;
 extern const dmxbox_rest_result_t dmxbox_rest_204_no_content;
-extern const dmxbox_rest_result_t dmxbox_rest_400_bad_request;
-extern const dmxbox_rest_result_t dmxbox_rest_404_not_found;
+dmxbox_rest_result_t dmxbox_rest_400_bad_request(const char *message);
+dmxbox_rest_result_t dmxbox_rest_404_not_found(const char *message);
 extern const dmxbox_rest_result_t dmxbox_rest_405_method_not_allowed;
-extern const dmxbox_rest_result_t dmxbox_rest_500_internal_server_error;
+dmxbox_rest_result_t dmxbox_rest_500_internal_server_error(const char *message);
 
 dmxbox_rest_result_t dmxbox_rest_201_created(const char *location_format, ...);
 dmxbox_rest_result_t dmxbox_rest_result_json(cJSON *);
