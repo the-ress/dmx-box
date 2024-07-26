@@ -1,4 +1,5 @@
 #include "api_strings.h"
+#include "cJSON.h"
 #include <esp_log.h>
 #include <esp_mac.h>
 #include <esp_wifi_types.h>
@@ -66,6 +67,14 @@ cJSON *dmxbox_api_channel_to_json(const dmxbox_channel_t *c) {
   return size < sizeof(buffer) ? cJSON_CreateString(buffer) : NULL;
 }
 
+cJSON *dmxbox_api_optional_channel_to_json(const dmxbox_channel_t *c) {
+  if (c->index == 0 && c->universe.address == 0) {
+    return cJSON_CreateNull();
+  }
+
+  return dmxbox_api_channel_to_json(c);
+}
+
 bool dmxbox_api_channel_from_json(const cJSON *json, dmxbox_channel_t *c) {
   if (!cJSON_IsString(json)) {
     ESP_LOGE(TAG, "channel is not a string");
@@ -81,4 +90,16 @@ bool dmxbox_api_channel_from_json(const cJSON *json, dmxbox_channel_t *c) {
 
   c->index = value;
   return true;
+}
+
+bool dmxbox_api_optional_channel_from_json(
+    const cJSON *json,
+    dmxbox_channel_t *c
+) {
+  if (cJSON_IsNull(json)) {
+    c->index = 0;
+    return true;
+  }
+
+  return dmxbox_api_channel_from_json(json, c);
 }
