@@ -1,6 +1,7 @@
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <string.h>
 
 #include "const.h"
 #include "dmxbox_const.h"
