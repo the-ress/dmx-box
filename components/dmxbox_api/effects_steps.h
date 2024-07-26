@@ -1,4 +1,6 @@
 #pragma once
+#include <cJSON.h>
+
 #include "dmxbox_rest.h"
 #include "effect_step_storage.h"
 #include "serializer.h"

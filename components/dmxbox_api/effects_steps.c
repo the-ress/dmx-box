@@ -105,6 +105,64 @@ dmxbox_rest_result_t dmxbox_api_effect_step_put(
   );
 }
 
+dmxbox_rest_result_t dmxbox_api_effect_step_batch_put(
+    httpd_req_t *req,
+    uint16_t effect_id,
+    cJSON *json
+) {
+  ESP_LOGI(TAG, "PUT effect=%u steps", effect_id);
+  // TODO delete steps not present in the request
+
+  if (!cJSON_IsArray(json)) {
+    ESP_LOGE(TAG, "failed to parse input: not an array");
+    return dmxbox_rest_400_bad_request("failed to parse input: not an array");
+  }
+
+  ESP_LOGI(TAG, "got %u steps", cJSON_GetArraySize(json));
+
+  cJSON *step_json;
+  int i = 0;
+  cJSON_ArrayForEach(step_json, json) {
+    cJSON *step_id_json = cJSON_GetObjectItem(step_json, "id");
+    if (!step_id_json) {
+      ESP_LOGE(TAG, "step id is missing at position %d", i);
+      return dmxbox_rest_400_bad_request("step id is missing");
+    }
+
+    uint16_t step_id;
+    if (!dmxbox_u16_from_json(step_id_json, &step_id)) {
+      ESP_LOGE(TAG, "failed parse step id at position %d", i);
+      return dmxbox_rest_400_bad_request("failed to parse step id");
+    }
+
+    dmxbox_effect_step_t *parsed =
+        dmxbox_effect_step_from_json_alloc(step_json);
+    if (!parsed) {
+      ESP_LOGE(
+          TAG,
+          "failed to parse effect step %u at position %d",
+          step_id,
+          i
+      );
+      return dmxbox_rest_400_bad_request("failed to parse effect step");
+    }
+
+    esp_err_t ret = dmxbox_effect_step_set(effect_id, step_id, parsed);
+    free(parsed);
+
+    if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "failed to save effect step %u", step_id);
+      return dmxbox_rest_500_internal_server_error(
+          "failed to save effect step to storage"
+      );
+    }
+
+    i++;
+  }
+
+  return dmxbox_rest_204_no_content;
+}
+
 static dmxbox_rest_result_t dmxbox_api_effect_step_delete(
     httpd_req_t *req,
     uint16_t effect_id,
@@ -198,6 +256,7 @@ const dmxbox_rest_container_t effects_steps_router = {
     .get = dmxbox_api_effect_step_get,
     .post = NULL,
     .put = dmxbox_api_effect_step_put,
+    .batch_put = dmxbox_api_effect_step_batch_put,
     .delete = dmxbox_api_effect_step_delete,
     .list = dmxbox_api_effect_step_list,
 };

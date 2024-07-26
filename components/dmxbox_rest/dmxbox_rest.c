@@ -127,9 +127,12 @@ static esp_err_t dmxbox_rest_parse_uri(
   return ESP_ERR_NOT_FOUND;
 }
 
-const dmxbox_rest_result_t dmxbox_rest_200_ok = {.status = "200 OK"};
+const dmxbox_rest_result_t dmxbox_rest_200_ok = {
+    .status = "200 OK",
+};
 const dmxbox_rest_result_t dmxbox_rest_204_no_content = {
-    .status = "204 No Content"};
+    .status = "204 No Content",
+};
 
 dmxbox_rest_result_t dmxbox_rest_400_bad_request(const char *message) {
   cJSON *json = cJSON_CreateObject();
@@ -187,8 +190,7 @@ dmxbox_rest_result_t dmxbox_rest_201_created(const char *location_format, ...) {
   return result;
 }
 
-static esp_err_t
-dmxbox_rest_send(httpd_req_t *req, dmxbox_rest_result_t result) {
+esp_err_t dmxbox_rest_send(httpd_req_t *req, dmxbox_rest_result_t result) {
   esp_err_t ret = ESP_OK;
   if (result.status) {
     ESP_GOTO_ON_ERROR(
@@ -326,24 +328,44 @@ dmxbox_rest_put(httpd_req_t *req, const dmxbox_rest_uri_t *uri) {
   );
 
   dmxbox_rest_result_t result;
-  if (uri->container->put) {
-    ESP_LOGI(
-        TAG,
-        "PUT %s/%u (parent_id=%u)",
-        uri->container->slug,
-        uri->id,
-        uri->parent_id
-    );
-    result = uri->container->put(req, uri->parent_id, uri->id, json);
+  if (uri->has_id) {
+    if (uri->container->put) {
+      ESP_LOGI(
+          TAG,
+          "PUT %s/%u (parent_id=%u)",
+          uri->container->slug,
+          uri->id,
+          uri->parent_id
+      );
+      result = uri->container->put(req, uri->parent_id, uri->id, json);
+    } else {
+      ESP_LOGE(
+          TAG,
+          "PUT %s/%u (parent_id=%u) not implemented",
+          uri->container->slug,
+          uri->id,
+          uri->parent_id
+      );
+      result = dmxbox_rest_405_method_not_allowed;
+    }
   } else {
-    ESP_LOGE(
-        TAG,
-        "PUT %s/%u (parent_id=%u) not implemented",
-        uri->container->slug,
-        uri->id,
-        uri->parent_id
-    );
-    result = dmxbox_rest_405_method_not_allowed;
+    if (uri->container->batch_put) {
+      ESP_LOGI(
+          TAG,
+          "PUT %s (batch, parent_id=%u)",
+          uri->container->slug,
+          uri->parent_id
+      );
+      result = uri->container->batch_put(req, uri->parent_id, json);
+    } else {
+      ESP_LOGE(
+          TAG,
+          "PUT %s (batch, parent_id=%u) not implemented",
+          uri->container->slug,
+          uri->parent_id
+      );
+      result = dmxbox_rest_405_method_not_allowed;
+    }
   }
 
   cJSON_free(json);

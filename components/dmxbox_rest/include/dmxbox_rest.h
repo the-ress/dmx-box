@@ -19,6 +19,8 @@ dmxbox_rest_result_t dmxbox_rest_500_internal_server_error(const char *message);
 dmxbox_rest_result_t dmxbox_rest_201_created(const char *location_format, ...);
 dmxbox_rest_result_t dmxbox_rest_result_json(cJSON *);
 
+esp_err_t dmxbox_rest_send(httpd_req_t *req, dmxbox_rest_result_t result);
+
 struct dmxbox_rest_container;
 struct dmxbox_rest_child_container;
 
@@ -54,6 +56,11 @@ typedef dmxbox_rest_result_t (*dmxbox_rest_put_t)(
     uint16_t child_id,
     cJSON *body
 );
+typedef dmxbox_rest_result_t (*dmxbox_rest_batch_put_t)(
+    httpd_req_t *req,
+    uint16_t parent_id,
+    cJSON *body
+);
 
 typedef struct dmxbox_rest_container {
   const char *slug;
@@ -63,6 +70,7 @@ typedef struct dmxbox_rest_container {
   dmxbox_rest_list_t list;
   dmxbox_rest_post_t post;
   dmxbox_rest_put_t put;
+  dmxbox_rest_batch_put_t batch_put;
   const struct dmxbox_rest_child_container *first_child;
 } dmxbox_rest_container_t;
 
