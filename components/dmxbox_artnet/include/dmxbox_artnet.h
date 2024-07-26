@@ -15,3 +15,6 @@ void dmxbox_artnet_init();
 
 void dmxbox_artnet_receive_task(void *parameter);
 void dmxbox_set_artnet_active(bool state);
+
+void dmxbox_artnet_save_universe_snapshots();
+void dmxbox_artnet_reset_state();

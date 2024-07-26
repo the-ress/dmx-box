@@ -1,6 +1,7 @@
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <string.h>
 
 #include "const.h"
 #include "dmxbox_const.h"
@@ -9,7 +10,6 @@
 #include "esp_dmx.h"
 
 #define DMX_SEND_PERIOD 30
-
 #define DMX_SEND_BACKOFF 200
 
 static const char *TAG = "dmx_send";
@@ -82,4 +82,10 @@ void dmxbox_set_dmx_out_active(bool state) {
     ESP_ERROR_CHECK(dmxbox_led_set(dmxbox_led_dmx_out, state));
     dmx_out_active = state;
   }
+}
+
+void dmxbox_dmx_send_get_data(uint8_t data[DMX_CHANNEL_COUNT]) {
+  taskENTER_CRITICAL(&dmxbox_dmx_out_spinlock);
+  memcpy(data, dmxbox_dmx_out_data + 1, DMX_CHANNEL_COUNT);
+  taskEXIT_CRITICAL(&dmxbox_dmx_out_spinlock);
 }

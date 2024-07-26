@@ -2,6 +2,7 @@ idf_component_register(
   SRCS
     api_config.c
     api_strings.c
+    dmx.c
     dmxbox_api.c
     artnet.c
     effects.c
@@ -9,11 +10,13 @@ idf_component_register(
     settings_artnet.c
     settings_sta.c
     serializer.c
+    system.c
     ws.c
     ws_ap_found.c
   INCLUDE_DIRS include
   REQUIRES
     dmxbox_artnet
+    dmxbox_dmx
     dmxbox_httpd
     dmxbox_rest
     dmxbox_storage

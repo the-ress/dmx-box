@@ -143,3 +143,9 @@ void dmxbox_dmx_receive_task(void *parameter) {
     }
   }
 }
+
+void dmxbox_dmx_receive_get_data(uint8_t data[DMX_CHANNEL_COUNT]) {
+  taskENTER_CRITICAL(&dmxbox_dmx_in_spinlock);
+  memcpy(data, dmxbox_dmx_in_data + 1, DMX_CHANNEL_COUNT);
+  taskEXIT_CRITICAL(&dmxbox_dmx_in_spinlock);
+}

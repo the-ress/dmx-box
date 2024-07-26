@@ -2,27 +2,24 @@
 #include <esp_check.h>
 #include <esp_err.h>
 #include <esp_log.h>
-#include <lwip/err.h>
 #include <stdio.h>
 
 #include "artnet.h"
 #include "dmxbox_artnet.h"
+#include "dmxbox_dmx_receive.h"
+#include "dmxbox_dmx_send.h"
 #include "dmxbox_httpd.h"
 #include "dmxbox_rest.h"
+#include "dmxbox_storage.h"
 #include "effect_step_storage.h"
 #include "effects_steps.h"
 
-static const char TAG[] = "dmxbox_api_artnet";
+static const char TAG[] = "dmxbox_api_dmx";
 
-static dmxbox_rest_result_t
-dmxbox_api_artnet_get(httpd_req_t *req, uint16_t unused, uint16_t universe_id) {
-  ESP_LOGI(TAG, "GET artnet=%u", universe_id);
-
-  uint8_t data[DMX_CHANNEL_COUNT];
-  if (!dmxbox_artnet_get_universe_data(universe_id, data)) {
-    return dmxbox_rest_404_not_found("artnet universe not found");
-  }
-
+static dmxbox_rest_result_t serialize_active_channels(
+    uint8_t data[DMX_CHANNEL_COUNT],
+    uint16_t universe_address
+) {
   uint16_t active_channel_count = 0;
   dmxbox_channel_level_t active_channels[DMX_CHANNEL_COUNT];
   for (uint16_t i = 0; i < DMX_CHANNEL_COUNT; i++) {
@@ -33,7 +30,7 @@ dmxbox_api_artnet_get(httpd_req_t *req, uint16_t unused, uint16_t universe_id) {
 
     active_channels[active_channel_count].channel.index = i + 1;
     active_channels[active_channel_count].channel.universe.address =
-        universe_id;
+        universe_address;
     active_channels[active_channel_count].level = level;
     active_channel_count++;
   }
@@ -73,50 +70,50 @@ dmxbox_api_artnet_get(httpd_req_t *req, uint16_t unused, uint16_t universe_id) {
   return dmxbox_rest_result_json(array);
 }
 
-static esp_err_t dmxbox_api_artnet_clear(httpd_req_t *req) {
-  ESP_LOGI(TAG, "POST request for %s", req->uri);
+static esp_err_t dmxbox_api_dmx_output_get(httpd_req_t *req) {
+  ESP_LOGI(TAG, "GET request for %s", req->uri);
   dmxbox_httpd_cors_allow_origin(req);
 
-  dmxbox_artnet_reset_state();
+  uint8_t data[DMX_CHANNEL_COUNT];
+  dmxbox_dmx_send_get_data(data);
 
-  ESP_RETURN_ON_ERROR(
-      httpd_resp_set_status(req, HTTPD_204),
-      TAG,
-      "failed to set status"
-  );
-
-  ESP_RETURN_ON_ERROR(
-      httpd_resp_send_chunk(req, NULL, 0),
-      TAG,
-      "failed to send empty chunk"
-  );
-
-  return ERR_OK;
+  dmxbox_rest_result_t result =
+      serialize_active_channels(data, dmxbox_get_native_universe());
+  return dmxbox_rest_send(req, result);
 }
 
-static const dmxbox_rest_container_t artnet_router = {
-    .slug = "artnet",
-    .allow_zero = true,
-    .get = dmxbox_api_artnet_get,
-};
+static esp_err_t dmxbox_api_dmx_input_get(httpd_req_t *req) {
+  ESP_LOGI(TAG, "GET request for %s", req->uri);
+  dmxbox_httpd_cors_allow_origin(req);
 
-esp_err_t dmxbox_api_artnet_register(httpd_handle_t server) {
-  static const httpd_uri_t clear = {
-      .uri = "/api/artnet/clear",
-      .method = HTTP_POST,
-      .handler = dmxbox_api_artnet_clear,
+  uint8_t data[DMX_CHANNEL_COUNT];
+  dmxbox_dmx_receive_get_data(data);
+
+  dmxbox_rest_result_t result =
+      serialize_active_channels(data, dmxbox_get_native_universe());
+  return dmxbox_rest_send(req, result);
+}
+
+esp_err_t dmxbox_api_dmx_register(httpd_handle_t server) {
+  static const httpd_uri_t output = {
+      .uri = "/api/dmx/output",
+      .method = HTTP_GET,
+      .handler = dmxbox_api_dmx_output_get,
+  };
+  static const httpd_uri_t input = {
+      .uri = "/api/dmx/input",
+      .method = HTTP_GET,
+      .handler = dmxbox_api_dmx_input_get,
   };
   ESP_RETURN_ON_ERROR(
-      httpd_register_uri_handler(server, &clear),
+      httpd_register_uri_handler(server, &output),
       TAG,
-      "artnet/clear register failed"
+      "dmx/output register failed"
   );
-
   ESP_RETURN_ON_ERROR(
-      dmxbox_rest_register(server, &artnet_router),
+      httpd_register_uri_handler(server, &input),
       TAG,
-      "artnet register failed"
+      "dmx/input register failed"
   );
-
   return ESP_OK;
 }

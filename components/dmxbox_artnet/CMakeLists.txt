@@ -6,6 +6,7 @@ idf_component_register(
   INCLUDE_DIRS include
   REQUIRES
     dmxbox_const
+    dmxbox_dmx
     dmxbox_led
     dmxbox_storage
     dmxbox_wifi

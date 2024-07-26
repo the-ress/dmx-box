@@ -588,7 +588,7 @@ static void handle_packet(
   }
 }
 
-static void reset_artnet_state() {
+void dmxbox_artnet_reset_state() {
   for (dmxbox_artnet_universe_t *universe = universes_head; universe;
        universe = universe->next) {
     taskENTER_CRITICAL(&dmxbox_artnet_spinlock);
@@ -610,7 +610,7 @@ static void reset_button_loop(void *parameter) {
     if (xQueueReceive(button_events, &ev, 1000 / portTICK_PERIOD_MS)) {
       if ((ev.pin == dmxbox_button_reset) && (ev.event == BUTTON_DOWN)) {
         ESP_LOGI(TAG, "Reset button pressed");
-        reset_artnet_state();
+        dmxbox_artnet_reset_state();
       }
     }
   }
@@ -637,6 +637,13 @@ void send_periodic_poll_reply_when_connected(void *parameter) {
     }
 
     vTaskDelay(POLL_REPLY_INTERVAL / portTICK_PERIOD_MS);
+  }
+}
+
+void dmxbox_artnet_save_universe_snapshots() {
+  for (dmxbox_artnet_universe_t *universe = universes_head; universe;
+       universe = universe->next) {
+    store_universe_snapshot(universe);
   }
 }
 
