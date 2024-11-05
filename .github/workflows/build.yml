@@ -20,3 +20,9 @@ jobs:
           esp_idf_version: v5.2
           target: esp32
           path: "."
+          command: >-
+            bash -c "$(curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh)"
+            && export NVM_DIR="$HOME/.nvm"
+            && . "$NVM_DIR/nvm.sh"
+            && nvm install 20
+            && idf.py build
