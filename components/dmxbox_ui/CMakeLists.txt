@@ -10,13 +10,14 @@ set(NPM_DIST_DIR    "${NPM_BUILD_DIR}/dist")
 ExternalProject_Add(
   dmxbox_ui_npm
   SOURCE_DIR "${NPM_PROJECT_DIR}"
+  BINARY_DIR "${NPM_DIST_DIR}"
 
   UPDATE_COMMAND npm install
   CONFIGURE_COMMAND ""
 
   BUILD_ALWAYS TRUE
-  BUILD_IN_SOURCE TRUE
-  BUILD_COMMAND npm run clean
+  BUILD_COMMAND cd "${NPM_PROJECT_DIR}"
+  COMMAND npm run clean
   COMMAND npm run build
         --
         --no-cache
