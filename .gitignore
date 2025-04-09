@@ -4,3 +4,7 @@ node_modules/
 sdkconfig
 sdkconfig.old
 .vscode/settings.json
+/pcb/dmx-box-backups
+/pcb/dmx-box-rounded-backups
+/pcb/dmx-box-output
+/pcb/fp-info-cache

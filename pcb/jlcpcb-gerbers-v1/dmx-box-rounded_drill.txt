@@ -1,0 +1,16 @@
+targetx = 73.28
+targety = 102.33
+targetz = 8.19
+
+xmin = 38.100000
+ymin = -120.650000
+xmax = 176.530000
+ymax = -71.120000
+
+xmirror = false
+drawExtent = false
+
+_leadinx = 180
+_leadiny = 130
+
+_speed = 500
